@@ -1,0 +1,39 @@
+# Configuración privada
+.env
+.env.*
+!.env.example
+auth.json
+*.pem
+*.key
+*.p12
+
+# Dependencias y archivos generados
+**/vendor/
+**/node_modules/
+/src/public/build/
+/src/public/hot
+/src/public/storage
+/src/bootstrap/cache/*
+!/src/bootstrap/cache/.gitignore
+/src/storage/**
+!/src/storage/**/
+!/src/storage/**/.gitignore
+**/.phpunit.cache/
+**/.phpunit.result.cache
+
+# Datos locales y respaldos
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+/backups/
+*.sql.gz
+*.dump
+*.log
+
+# Configuración de editores y sistema
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
