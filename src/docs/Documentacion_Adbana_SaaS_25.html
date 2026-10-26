@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentación Técnica Adbana SaaS (Entregable 25%)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<style>
+    @page {
+        margin: 20mm;
+        size: A4;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #1e293b;
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 40px 25px;
+        background-color: #f1f5f9;
+    }
+    .document-wrapper {
+        background: #ffffff;
+        padding: 50px 60px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+    }
+    h1 {
+        color: #0f172a;
+        font-size: 2.1rem;
+        border-bottom: 3px solid #2563eb;
+        padding-bottom: 12px;
+        margin-top: 0;
+    }
+    h2 {
+        color: #1e3a8a;
+        font-size: 1.55rem;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 8px;
+        margin-top: 40px;
+    }
+    h3 {
+        color: #1d4ed8;
+        font-size: 1.25rem;
+        margin-top: 26px;
+    }
+    h4 {
+        color: #334155;
+        font-size: 1.05rem;
+        margin-top: 18px;
+    }
+    p, li {
+        color: #334155;
+        font-size: 14.5px;
+    }
+    blockquote {
+        background-color: #eff6ff;
+        border-left: 4px solid #3b82f6;
+        margin: 18px 0;
+        padding: 12px 18px;
+        border-radius: 0 6px 6px 0;
+    }
+    blockquote p {
+        margin: 0;
+        color: #1e40af;
+        font-size: 14px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 22px 0;
+        font-size: 13.5px;
+    }
+    th, td {
+        border: 1px solid #cbd5e1;
+        padding: 9px 12px;
+        text-align: left;
+        vertical-align: top;
+    }
+    th {
+        background-color: #f8fafc;
+        color: #0f172a;
+        font-weight: 600;
+    }
+    tr:nth-child(even) {
+        background-color: #f8fafc;
+    }
+    code {
+        background-color: #f1f5f9;
+        color: #0969da;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 13px;
+    }
+    pre {
+        background-color: #0f172a;
+        color: #f8fafc;
+        padding: 14px 18px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-size: 13px;
+    }
+    pre code {
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+    }
+    .mermaid {
+        margin: 24px 0;
+        text-align: center;
+        background: #fafafa;
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+    hr {
+        border: none;
+        border-top: 1px solid #e2e8f0;
+        margin: 30px 0;
+    }
+    a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+    @media print {
+        body {
+            background: #ffffff;
+            padding: 0;
+        }
+        .document-wrapper {
+            box-shadow: none;
+            padding: 0;
+        }
+        h2 {
+            page-break-before: always;
+        }
+        table, pre, .mermaid {
+            page-break-inside: avoid;
+        }
+    }
+</style>
+</head>
+<body>
+<div class="document-wrapper">
+<h1>Documentación Técnica del Proyecto de Software: Adbana SaaS (Entregable 25%)</h1>
+<p><strong>Proyecto:</strong> Adbana SaaS — Sistema Web Multi-Restaurante (POS, Pedidos, Carta Pública e Inventario)</p>
+<p><strong>Fase de Evaluación:</strong> Entregable del 25% (Semana 9)</p>
+<p><strong>Estándar de Referencia:</strong> Guía para la Documentación de Proyectos de Software</p>
+<hr>
+<h2>Índice General</h2>
+<p>1. <a href="#1-definiciones-y-especificación-de-requerimientos">Definiciones y Especificación de Requerimientos</a></p>
+<ul>
+  <li><a href="#11-definición-general-del-proyecto-de-software">1.1. Definición General del Proyecto de Software</a></li>
+  <li><a href="#12-especificación-de-requerimientos-del-proyecto">1.2. Especificación de Requerimientos del Proyecto</a></li>
+  <li><a href="#13-especificaciones-de-procedimientos-desarrollo-instalación-y-prueba">1.3. Especificaciones de Procedimientos (Desarrollo, Instalación y Prueba)</a></li>
+</ul>
+<p>2. <a href="#2-arquitectura-del-sistema">Arquitectura del Sistema</a></p>
+<ul>
+  <li><a href="#21-descripción-jerárquica">2.1. Descripción Jerárquica</a></li>
+  <li><a href="#22-diagrama-de-módulos">2.2. Diagrama de Módulos</a></li>
+  <li><a href="#23-descripción-individual-de-los-módulos">2.3. Descripción Individual de los Módulos</a></li>
+  <li><a href="#24-dependencias-externas-y-decisiones-de-diseño-tecnológico">2.4. Dependencias Externas y Decisiones de Diseño Tecnológico</a></li>
+</ul>
+<p>3. <a href="#3-diseño-del-modelo-de-datos">Diseño del Modelo de Datos</a></p>
+<ul>
+  <li><a href="#31-entidades-y-relaciones-formato-language-agnostic">3.1. Entidades y Relaciones (Formato Language-Agnostic)</a></li>
+  <li><a href="#32-diagrama-entidad-relación-editable">3.2. Diagrama Entidad-Relación (Editable)</a></li>
+  <li><a href="#33-clasificación-de-datos-entrada-internos-y-salida">3.3. Clasificación de Datos (Entrada, Internos y Salida)</a></li>
+</ul>
+<p>4. <a href="#4-descripción-de-procesos-y-servicios-ofrecidos-por-el-sistema">Descripción de Procesos y Servicios Ofrecidos por el Sistema</a></p>
+<ul>
+  <li><a href="#41-registro-transaccional-de-restaurante-y-dueño">4.1. Registro Transaccional de Restaurante y Dueño</a></li>
+  <li><a href="#42-autenticación-login-y-control-de-rate-limiting">4.2. Autenticación (Login) y Control de Rate Limiting</a></li>
+  <li><a href="#43-recepción-de-pedidos-públicos-con-idempotencia-y-control-de-stock">4.3. Recepción de Pedidos Públicos con Idempotencia y Control de Stock</a></li>
+  <li><a href="#44-control-centralizado-de-respuestas-y-errores-http">4.4. Control Centralizado de Respuestas y Errores HTTP</a></li>
+</ul>
+<p>5. <a href="#5-documentación-técnica--especificación-api-y-tdas">Documentación Técnica — Especificación API y TDAs</a></p>
+<ul>
+  <li><a href="#51-sinopsis-de-invocación-del-sistema">5.1. Sinopsis de Invocación del Sistema</a></li>
+  <li><a href="#52-especificación-detallada-de-endpoints-rest">5.2. Especificación Detallada de Endpoints REST</a></li>
+  <li><a href="#53-tipos-de-datos-abstractos-tdas-y-estructuras-internas">5.3. Tipos de Datos Abstractos (TDAs) y Estructuras Internas</a></li>
+</ul>
+<p>6. <a href="#6-conclusiones">Conclusiones</a></p>
+<hr>
+<h2>1. Definiciones y Especificación de Requerimientos</h2>
+<h3>1.1. Definición General del Proyecto de Software</h3>
+<h4>Idea General (¿Qué es?)</h4>
+<p><strong>Adbana SaaS</strong> es una plataforma web multi-inquilino (<em>multi-tenant</em>) diseñada bajo el modelo <em>Software as a Service</em> para la gestión operativa, comercial y administrativa de restaurantes. El sistema centraliza en una única arquitectura contenedorizada el catálogo de productos y categorías, la carta pública digital para comensales, la recepción de pedidos en tiempo real, el punto de venta (POS), la vista de comandas para cocina, el control de inventario (stock) y la gestión de turnos de caja.</p>
+<h4>Objetivos (¿Para qué?)</h4>
+<p>El objetivo principal del desarrollo es digitalizar y asegurar el flujo operativo de pequeños y medianos restaurantes mediante un sistema aislado por negocio que evite errores humanos en el cálculo de cobros, prevenga la sobreventa de productos sin stock ante pedidos concurrentes y garantice el control financiero por turno.</p>
+<ul>
+  <li><strong>Necesidad cubierta:</strong> Elimina la pérdida de comandas, las inconsistencias entre el inventario físico y las ventas, la exposición de costos confidenciales al personal operativo y la vulnerabilidad ante envíos duplicados o saturación de peticiones en la carta pública.</li>
+</ul>
+<h4>Usuarios (¿Quién?)</h4>
+<p>El sistema e informe están dirigidos a dos grupos de usuarios con distintos niveles de experiencia técnica:</p>
+<p>1. <strong>Usuarios Finales Operativos (Experiencia técnica básica):</strong></p>
+<ul>
+  <li><strong>Dueño del Restaurante:</strong> Registra el negocio, administra categorías, productos, costos, personal, permisos delegados, gastos, reportes financieros y auditoría.</li>
+  <li><strong>Cajero / Mozo / Cocina:</strong> Personal operativo que interactúa con el panel web (<code>http://localhost:8080/panel</code>) según sus permisos asignados para tomar pedidos, preparar comandas o cobrar en caja.</li>
+  <li><strong>Comensal (Cliente Público):</strong> Usuario anónimo que consulta la carta pública (<code>http://localhost:8080/c/{slug}</code>) desde su navegador móvil o de escritorio y envía pedidos sin requerir conocimientos técnicos.</li>
+</ul>
+<p>2. <strong>Administradores y Desarrolladores de Sistemas (Experiencia técnica media-avanzada):</strong></p>
+<ul>
+  <li>Encargados de aprovisionar el entorno mediante contenedores Docker, gestionar variables de entorno (<code>.env</code>), administrar la base de datos PostgreSQL (local y en AWS RDS) y ejecutar pruebas automatizadas y de estrés (<code>PHPUnit</code> y <code>Grafana k6</code>).</li>
+</ul>
+<hr>
+<h3>1.2. Especificación de Requerimientos del Proyecto</h3>
+<h4>Requisitos Generales (Pautas de la Entrega del 25%)</h4>
+<p>El proyecto cumple estrictamente con todos los criterios exigidos para la <strong>Entrega del 25%</strong>:</p>
+<p>1. <strong>Entorno Cloud preparado:</strong> Instancia aprovisionada en <strong>Amazon Web Services (AWS RDS PostgreSQL 16)</strong> bajo el identificador <code>adbana-db</code> en la región <code>us-east-2</code> (Capa Gratuita), verificando la existencia y disponibilidad del entorno cloud previo al despliegue del 80%.</p>
+<p>2. <strong>Desarrollo de endpoints:</strong> API RESTful estructurada bajo el prefijo <code>/api/*</code> con separación de rutas públicas y protegidas.</p>
+<p>3. <strong>Registro y login diferenciados y funcionales:</strong> Endpoints e interfaces separados para el alta de un nuevo restaurante con su usuario propietario (<code>POST /api/auth/registro-dueno</code>) y el inicio de sesión de usuarios existentes (<code>POST /api/auth/login</code>).</p>
+<p>4. <strong>Implementación de Rate Limits:</strong> Limitadores configurables por minuto mediante variables de entorno para proteger el login (<code>throttle:login</code>), el registro (<code>throttle:10,1</code>) y los pedidos públicos (<code>throttle:pedidos-publicos</code>).</p>
+<p>5. <strong>Vistas de página en desarrollo y no encontrada (404):</strong> Ruta raíz <code>/</code> con vista dedicada <em>"En construcción"</em> (<code>en-construccion.blade.php</code>) y captura de rutas inexistentes con vista personalizada <code>404.blade.php</code>.</p>
+<p>6. <strong>Control de respuestas HTTP:</strong> Estandarización de respuestas JSON para códigos <code>200</code>, <code>201</code>, <code>401</code>, <code>403</code>, <code>404</code>, <code>405</code>, <code>409</code>, <code>419</code>, <code>422</code>, <code>429</code> y <code>500</code> (ocultando trazas internas en producción).</p>
+<p>7. <strong>CRUD estructurado:</strong> Implementación funcional completa de operaciones de creación, lectura, actualización y eliminación sobre Categorías y Productos, además de Usuarios, Gastos, Stock y Pedidos.</p>
+<p>8. <strong>Variables de entorno (<code>.env</code>):</strong> Parametrización completa de credenciales de base de datos, claves de cifrado, puertos, Redis y umbrales de Rate Limit en <code>.env</code> (raíz) y <code>src/.env</code> (aplicación), excluidos del control de versiones mediante <code>.gitignore</code>.</p>
+<p>9. <strong>Cifrado de contraseñas:</strong> Hash criptográfico automático mediante <strong>Bcrypt</strong> (<code>BCRYPT_ROUNDS=12</code>) utilizando el cast <code>'password' => 'hashed'</code> y verificación segura vía <code>Hash::check()</code>.</p>
+<p>10. <strong>Pruebas unitarias y masivas mínimas:</strong> Suite automatizada de <strong>100 pruebas (594 aserciones)</strong> en PHPUnit sobre base de datos dedicada (<code>adbana_test</code>) y scripts de carga masiva en <code>k6</code>.</p>
+<p>11. <strong>Base de datos conectada, funcional y con diagrama editable:</strong> Motor PostgreSQL 16 operativo con 16 migraciones ejecutadas y diagrama Entidad-Relación documentado en formato editable Mermaid y DBML.</p>
+<p>12. <strong>Pruebas de estrés de 50 y 100 usuarios en el servidor:</strong> Ejecución y registro de métricas de rendimiento con <strong>50 y 100 usuarios virtuales (VUs)</strong> concurrentes mediante Grafana k6.</p>
+<blockquote><p><strong>Declaración de Funcionalidades Adicionales Implementadas (Adelanto del 80%):</strong></p></blockquote>
+<blockquote><p>En cumplimiento de la normativa de evaluación (<em>"si se aumenta algo se debe presentar mencionándolo para evitar problemas futuros"</em>), se deja constancia de que el proyecto ya incorpora de forma anticipada:</p></blockquote>
+<blockquote><p>- <strong>Aislamiento Multi-Restaurante estricto (<code>BelongsToRestaurante</code> y <code>RestauranteContexto</code>)</strong>: Impide que un restaurante lea o modifique registros de otro.</p></blockquote>
+<blockquote><p>- <strong>Sistema de Roles y Permisos Granulares (<code>Permisos</code>)</strong>: Roles <code>dueno</code>, <code>cajero</code>, <code>mozo</code>, <code>mozo_cajero</code> y <code>cocina</code> con delegación individual por empleado.</p></blockquote>
+<blockquote><p>- <strong>Control de Turnos de Caja y POS (<code>CajaController</code>, <code>VentaController</code>)</strong>: Apertura, arqueo, cálculo de vuelto en servidor y cierre de caja.</p></blockquote>
+<blockquote><p>- <strong>Idempotencia en Pedidos Públicos (<code>PedidoPublicoIdempotente</code>)</strong>: Prevención de pedidos duplicados ante caídas o reintentos de red del cliente mediante llave UUID y huella SHA-256.</p></blockquote>
+<blockquote><p>- <strong>Auditoría Automática (<code>Auditable</code>)</strong>: Trazabilidad de cambios en modelos críticos sin almacenar contraseñas ni tokens.</p></blockquote>
+<blockquote><p>- <strong>Demo Visual 3D y Realidad Aumentada (AR)</strong>: Módulo visual demostrativo accesible desde la carta pública (<code>/demo-ar</code>).</p></blockquote>
+<h4>Requisitos Funcionales</h4>
+<ul>
+  <li><strong>RF-01 (Registro de Restaurante):</strong> Permitir el alta de un restaurante generando un <code>slug</code> único URL-safe y creando simultáneamente su usuario dueño en una única transacción atómica.</li>
+  <li><strong>RF-02 (Autenticación por Token):</strong> Validar credenciales de correo y contraseña, verificando que tanto el usuario como el restaurante estén activos antes de emitir un token Bearer (Laravel Sanctum).</li>
+  <li><strong>RF-03 (Gestión de Catálogo - CRUD):</strong> Crear, listar, buscar, filtrar, actualizar y eliminar categorías y productos por restaurante, restringiendo la eliminación física si el producto posee historial de pedidos.</li>
+  <li><strong>RF-04 (Carta Pública Cacheada):</strong> Exponer el menú activo de un restaurante mediante su <code>slug</code> con caché de 60 segundos e invalidación automática ante cambios de catálogo o stock.</li>
+  <li><strong>RF-05 (Toma de Pedidos y Descuento de Stock):</strong> Registrar pedidos desde la carta pública o el POS calculando los totales exclusivamente en el servidor (en centavos exactos), bloqueando las filas de productos (<code>SELECT ... FOR UPDATE</code>) y descontando el inventario atómicamente.</li>
+  <li><strong>RF-06 (Flujo de Cocina y Entrega):</strong> Gestionar la transición de estados del pedido (<code>pendiente</code> -> <code>confirmado</code> -> <code>preparando</code> -> <code>listo</code> -> <code>entregado</code> / <code>cancelado</code>), devolviendo el stock una única vez en caso de cancelación.</li>
+  <li><strong>RF-07 (Gestión de Caja y Cobros):</strong> Registrar pagos en efectivo o medios digitales, calcular el vuelto e impedir el cierre o desactivación de operadores con turnos de caja abiertos.</li>
+  <li><strong>RF-08 (Reportes y Gastos):</strong> Calcular ingresos, costos, ganancia bruta y ganancia neta por rango de fechas en base a los pedidos efectivamente cobrados.</li>
+</ul>
+<h4>Información de Autoría y Legacy del Proyecto</h4>
+<p>El proyecto <strong>Adbana SaaS</strong> es un desarrollo <strong>original</strong> construido desde cero para la asignatura, sin depender de código heredado (<em>legacy</em>) de sistemas comerciales previos. Se encuentra estructurado sobre el estándar moderno de <strong>Laravel 13</strong> y <strong>PHP 8.4</strong>, manteniendo compatibilidad con el estándar PSR-4 de carga automática de clases y el protocolo HTTP/1.1 REST JSON.</p>
+<h4>Alcances y Limitaciones del Sistema</h4>
+<ul>
+  <li><strong>Alcance actual:</strong> Operación completa en entorno Docker local y base de datos relacional aprovisionada en AWS RDS, abarcando desde el registro del restaurante hasta el cierre de caja y reportes financieros.</li>
+  <li><strong>Limitaciones declaradas:</strong></li>
+  <li>Los pagos digitales (Yape, Plin, Tarjeta) se registran como confirmación manual del operador; no integran pasarelas bancarias en vivo.</li>
+  <li>Los resúmenes emitidos son constancias internas de control y no constituyen comprobantes electrónicos fiscales (SUNAT).</li>
+  <li>No incluye modo de operación desconectado (<em>offline</em>), cobro recurrente de suscripciones ni impresión térmica directa por puerto serie/USB.</li>
+</ul>
+<hr>
+<h3>1.3. Especificaciones de Procedimientos (Desarrollo, Instalación y Prueba)</h3>
+<h4>Procedimientos de Desarrollo</h4>
+<ul>
+  <li><strong>Herramientas utilizadas:</strong></li>
+  <li><strong>Entorno de Contenedores:</strong> Docker Desktop 4.x (Motor Linux WSL2) y Docker Compose v5.</li>
+  <li><strong>Backend y Lenguaje:</strong> PHP 8.4 (FPM-Alpine) con extensiones <code>pdo_pgsql</code>, <code>opcache</code> y <code>redis</code>; Framework Laravel 13.x; gestor de dependencias Composer 2.</li>
+  <li><strong>Servidor Web y Base de Datos:</strong> Nginx 1.31 (Alpine), PostgreSQL 16 (Alpine), Redis 7 (Alpine) y Adminer 5 (interfaz visual de base de datos en puerto <code>8085</code>).</li>
+  <li><strong>Entorno Cloud:</strong> Amazon Web Services (AWS RDS PostgreSQL 16).</li>
+  <li><strong>Herramientas de Prueba:</strong> PHPUnit 12.5, Node.js (pruebas de regresión frontend) y Grafana k6 (pruebas de carga y estrés).</li>
+  <li><strong>Planificación y Metodología:</strong></li>
+</ul>
+<p>El desarrollo se estructuró de forma incremental en cinco etapas:</p>
+<p>1. Diseño del esquema relacional multi-tenant y migraciones con índices compuestos.</p>
+<p>2. Implementación de la capa de autenticación, cifrado Bcrypt, middlewares de roles/permisos y manejador global de respuestas HTTP.</p>
+<p>3. Construcción de los controladores CRUD (Categorías, Productos, Usuarios, Stock) y vistas de estado (<code>en-construccion</code> y <code>404</code>).</p>
+<p>4. Implementación de reglas transaccionales de negocio (pedidos con bloqueo pesimista de stock, idempotencia pública y caja).</p>
+<p>5. Ejecución de pruebas unitarias/integración (100 tests) y pruebas de estrés con k6 (50 y 100 VUs), corrigiendo cuellos de botella de montaje en Windows.</p>
+<h4>Procedimientos de Instalación y Prueba</h4>
+<h5>Requisitos No Funcionales</h5>
+<ul>
+  <li><strong>RNF-01 (Rendimiento):</strong> Tiempo de respuesta promedio inferior a <code>250 ms</code> en peticiones de lectura de carta bajo carga de hasta 100 usuarios concurrentes ($p95 < 1500\text{ ms}$).</li>
+  <li><strong>RNF-02 (Seguridad):</strong> Contraseñas cifradas con Bcrypt (factor de costo 12), tokens de acceso almacenados con hash SHA-256 en base de datos, ocultamiento de costos a roles no autorizados y Rate Limiting por IP/correo.</li>
+  <li><strong>RNF-03 (Consistencia Transaccional):</strong> Cero sobreventas (<em>overselling</em>) de inventario bajo concurrencia masiva mediante transacciones ACID y bloqueo de filas en PostgreSQL.</li>
+  <li><strong>RNF-04 (Portabilidad):</strong> Ejecución íntegra en contenedores Linux sin requerir instalación local de PHP, PostgreSQL ni Composer en el sistema operativo anfitrión.</li>
+</ul>
+<h5>Guía de Obtención e Instalación</h5>
+<p>Desde una terminal (PowerShell o CMD) en la raíz del proyecto (<code>c:\Proyectos\saas\Adbana_saasReal</code>):</p>
+<p><pre><code class="language-powershell"># 1. Crear los archivos de variables de entorno a partir de las plantillas
+Copy-Item .env.example .env
+Copy-Item src\.env.example src\.env
+
+# 2. Definir la misma contraseña DB_PASSWORD en ambos archivos (.env y src/.env)
+# Ejemplo: DB_PASSWORD=clave_adbana_123
+
+# 3. Construir y levantar los contenedores con el perfil de alto rendimiento para Windows
+docker compose -f docker-compose.yml -f docker-compose.fast.yml up -d --build
+
+# 4. Instalar las dependencias de PHP en el volumen optimizado de Docker
+docker compose -f docker-compose.yml -f docker-compose.fast.yml exec app composer install --prefer-dist --no-interaction --optimize-autoloader
+
+# 5. Generar la llave criptográfica de la aplicación y ejecutar las migraciones
+docker compose -f docker-compose.yml -f docker-compose.fast.yml exec app php artisan key:generate
+docker compose -f docker-compose.yml -f docker-compose.fast.yml exec app php artisan migrate --force</code></pre></p>
+<p>Para inicios posteriores, basta con ejecutar el script automatizado:</p>
+<p><pre><code class="language-cmd">iniciar-rapido.cmd</code></pre></p>
+<h5>Especificaciones de Prueba y Ejecución (50 y 100 Usuarios + Reporte de Incidentes)</h5>
+<p>1. <strong>Ejecución de Pruebas Unitarias y de Integración (PHPUnit):</strong></p>
+<p><pre><code class="language-powershell">   # Crear base de datos aislada de pruebas (solo la primera vez)
+   docker compose -f docker-compose.yml -f docker-compose.fast.yml exec db psql -U adbana -d postgres -c &quot;CREATE DATABASE adbana_test;&quot;
+
+   # Ejecutar la suite completa (100 pruebas / 594 aserciones)
+   docker compose -f docker-compose.yml -f docker-compose.fast.yml exec app php artisan test
+   ```
+
+2. **Ejecución de Pruebas de Estrés en el Servidor (50 y 100 Usuarios con Grafana k6):**
+   ```powershell
+   # Prueba de estrés con 50 usuarios virtuales concurrentes durante 30s
+   docker run --rm -v &quot;${PWD}/k6:/k6&quot; -e USUARIOS=50 grafana/k6 run /k6/consulta.js
+
+   # Prueba de estrés con 100 usuarios virtuales concurrentes durante 30s
+   docker run --rm -v &quot;${PWD}/k6:/k6&quot; -e USUARIOS=100 grafana/k6 run /k6/consulta.js
+
+   # Prueba de concurrencia transaccional de escritura (100 VUs comprando stock limitado)
+   docker run --rm -v &quot;${PWD}/k6:/k6&quot; -e BASE_URL=http://host.docker.internal:8080/api grafana/k6 run /k6/carga.js
+   ```
+
+3. **Resultados Obtenidos y Diagramas Comparativos de Rendimiento:**
+
+| Escenario de Prueba | Usuarios Virtuales (VUs) | Peticiones Totales | Tiempo Promedio (`avg`) | Percentil 95 (`p95`) | Tasa de Errores (`http_req_failed`) | Archivo de Evidencia |
+| --- | :---: | :---: | :---: | :---: | :---: | --- |
+| **Lectura de Carta (30s)** | **50 VUs** | 1,450 | `63.27 ms` | `102.81 ms` | **0.00 %** | `k6/resultado-50.json` |
+| **Lectura de Carta (30s)** | **100 VUs** | 2,800 | `80.08 ms` | `122.60 ms` | **0.00 %** | `k6/resultado-100.json` |
+| **Rampa + Compra Masiva (70s)** | **100 - 200 VUs** | 11,707 | `349.77 ms` | `613.76 ms` | **0.00 %** *(en lecturas)* | `k6/carga.js` |
+
+&lt;!--MERMAID_PLACEHOLDER_0--&gt;
+
+&lt;!--MERMAID_PLACEHOLDER_1--&gt;
+
+4. **Registro de Incidentes, Bloqueos y Caídas Detectadas (Motivo y Solución):**
+   En cumplimiento de la exigencia de la rúbrica (*&quot;Caso exista caídas del servidor también mencionarlas, aumentar el motivo y la solución&quot;*), se documentan los tres eventos técnicos ocurridos durante las pruebas:
+
+   * **Incidente 1 — Degradación severa de tiempos de respuesta en Windows (&gt; 2,500 ms por petición):**
+     - **Motivo:** Al montar la carpeta `./src` de Windows (NTFS) dentro del contenedor Linux (`/var/www`), la lectura de los más de 6,000 archivos de la carpeta `vendor/` a través del puente de archivos de WSL2 generaba un cuello de botella de Entrada/Salida (I/O) que saturaba los workers de PHP-FPM.
+     - **Solución:** Se diseñó el archivo complementario `docker-compose.fast.yml` y el script `iniciar-rapido.cmd`, que alojan `/var/www/vendor` en un volumen nativo de Linux (`vendor_runtime`) y habilitan `opcache` y un pool de hasta 25 procesos en `php-fpm.conf`. El tiempo de respuesta cayó de `&gt;2,500 ms` a **`63 ms`**.
+   * **Incidente 2 — Rechazo de 290 peticiones de compra en `k6/carga.js` con código HTTP 429:**
+     - **Motivo:** Durante la prueba de 100 usuarios comprando simultáneamente desde el mismo contenedor k6 (misma dirección IP `172.20.0.1`), el servidor aceptó exactamente los primeros **10 pedidos** (`HTTP 201`) y rechazó los **290 restantes** con `HTTP 429 (Too Many Requests)`. Esto no fue una caída del servidor, sino la activación exitosa del **Rate Limiter** (`LIMITE_PEDIDOS_POR_MINUTO=10`).
+     - **Solución:** Se verificó que el cortafuegos de aplicación protege correctamente a PostgreSQL contra ráfagas de spam. Para pruebas de agotamiento total de stock (50 unidades) desde una sola IP, basta con ajustar `LIMITE_PEDIDOS_POR_MINUTO=500` en `src/.env` y reiniciar el contenedor `app`.
+   * **Incidente 3 — Conflicto de puertos `8080` y `5432` al levantar el entorno Docker:**
+     - **Motivo:** Contenedores previos de una instancia anterior del proyecto mantenían tomados los puertos TCP `8080` y `5432` en el host Windows, impidiendo el enlace de red de Nginx y PostgreSQL.
+     - **Solución:** Se detuvieron los contenedores huérfanos mediante `docker compose stop`, liberando los sockets y permitiendo el arranque limpio de la pila `adbana_saasreal`.
+
+---
+
+## 2. Arquitectura del Sistema
+
+### 2.1. Descripción Jerárquica
+
+El sistema posee una arquitectura **monolítica modularizada en capas** sobre el patrón MVC/API de Laravel, desplegada sobre una infraestructura **multi-contenedor** orquestada con Docker Compose:
+
+- **Capa de Infraestructura (Contenedores Docker):**
+  - `web` (`nginx:alpine`): Proxy inverso y servidor de archivos estáticos en el puerto `8080`.
+  - `app` (`php:8.4-fpm-alpine`): Intérprete de aplicación con pool FastCGI en el puerto `9000`.
+  - `db` (`postgres:16-alpine`): Motor de persistencia relacional en el puerto `5432` (espejado conceptualmente en AWS RDS `adbana-db`).
+  - `redis` (`redis:7-alpine`): Almacén en memoria en el puerto `6379`.
+  - `adminer` (`adminer:latest`): Consola web de inspección de base de datos en Tiempo Real en el puerto `8085`.
+
+- **Organización Jerárquica de Espacios de Nombres (`src/app/`):**
+  - `App\Http\Controllers\`: Controladores de entrada REST (16 controladores especializados por dominio).
+  - `App\Http\Middleware\`: Filtros de intercepción HTTP (`RolMiddleware`, `PermisoMiddleware`, `TiemposRespuesta`).
+  - `App\Models\`: Entidades de dominio Eloquent ORM (`Restaurante`, `User`, `Categoria`, `Producto`, `Pedido`, `DetallePedido`, `Caja`, `MovimientoStock`, `Gasto`, `Auditoria`).
+  - `App\Models\Concerns\`: Traits transversales reutilizables (`BelongsToRestaurante`, `Auditable`, `LimpiaCacheCarta`).
+  - `App\Support\`: Tipos de datos abstractos y servicios de dominio puro (`Money`, `Permisos`, `RestauranteContexto`, `PedidoPublicoIdempotente`).
+  - `App\Jobs\Middleware\`: Middlewares para ejecución segura de tareas en segundo plano (`ParaRestaurante`).
+
+---
+
+### 2.2. Diagrama de Módulos
+
+&lt;!--MERMAID_PLACEHOLDER_2--&gt;
+
+---
+
+### 2.3. Descripción Individual de los Módulos
+
+#### 1. Módulo de Autenticación, Equipo y Seguridad
+- **Descripción general y propósito:** Gestiona el alta de nuevos restaurantes, la autenticación de usuarios, la administración de empleados y el control de acceso basado en roles y permisos.
+- **Responsabilidad y restricciones:** Cifra contraseñas, emite y revoca tokens Sanctum, y bloquea el acceso si el usuario o el restaurante están desactivados. Impide que un encargado escale privilegios por encima de los suyos o desactive a un operador con caja abierta.
+- **Dependencias:** `Laravel\Sanctum`, `Illuminate\Support\Facades\Hash`, `App\Support\Permisos`, modelos `User` y `Restaurante`.
+- **Implementación:** `src/app/Http/Controllers/AuthController.php`, `src/app/Http/Controllers/UsuarioController.php`, `src/app/Http/Controllers/PerfilController.php`, `src/app/Http/Middleware/RolMiddleware.php`, `src/app/Http/Middleware/PermisoMiddleware.php`.
+
+#### 2. Módulo de Aislamiento Multi-Restaurante (Multi-Tenancy)
+- **Descripción general y propósito:** Garantiza que cada consulta o escritura sobre la base de datos pertenezca exclusivamente al restaurante en sesión.
+- **Responsabilidad y restricciones:** Inyecta automáticamente la cláusula `WHERE restaurante_id = ?` en todas las consultas Eloquent. Si se intenta consultar un modelo sin usuario autenticado ni contexto explícito, lanza una `LogicException` bloqueando fugas de información.
+- **Dependencias:** `Illuminate\Database\Eloquent\Builder`, `App\Support\RestauranteContexto`.
+- **Implementación:** `src/app/Models/Concerns/BelongsToRestaurante.php`, `src/app/Support/RestauranteContexto.php`, `src/app/Jobs/Middleware/ParaRestaurante.php`.
+
+#### 3. Módulo de Catálogo (CRUD de Categorías y Productos)
+- **Descripción general y propósito:** Permite estructurar la oferta gastronómica del restaurante en categorías ordenables y productos con precio de venta, costo interno y stock.
+- **Responsabilidad y restricciones:** Valida unicidad de nombres de categoría por restaurante, oculta el atributo `costo` a usuarios sin permiso administrativo (`productos`), registra el movimiento de stock inicial al crear un producto e impide borrar productos que ya figuren en pedidos históricos (respondiendo `HTTP 409`).
+- **Dependencias:** Modelos `Categoria`, `Producto`, `MovimientoStock`, `DetallePedido` y trait `LimpiaCacheCarta`.
+- **Implementación:** `src/app/Http/Controllers/CategoriaController.php`, `src/app/Http/Controllers/ProductoController.php`, `src/app/Models/Categoria.php`, `src/app/Models/Producto.php`.
+
+#### 4. Módulo de Carta Pública e Idempotencia
+- **Descripción general y propósito:** Expone el catálogo público a los comensales sin requerir inicio de sesión y procesa sus pedidos de forma segura.
+- **Responsabilidad y restricciones:** Sirve el menú desde caché de 60 segundos. Al crear un pedido, exige una llave `clave_operacion` (UUID); si el cliente reintenta la misma llave con el mismo contenido tras un corte de red, devuelve el pedido original sin duplicar el cobro ni el descuento de stock. Si usa la misma llave con distinto contenido, aborta con `HTTP 409`.
+- **Dependencias:** `App\Support\PedidoPublicoIdempotente`, `App\Support\Money`, `App\Support\RestauranteContexto`, `Illuminate\Support\Facades\Cache`.
+- **Implementación:** `src/app/Http/Controllers/CartaController.php`, `src/app/Support/PedidoPublicoIdempotente.php`.
+
+#### 5. Módulo de Pedidos, Ventas POS, Cocina y Caja
+- **Descripción general y propósito:** Coordina el ciclo de vida de las órdenes internas, la preparación en cocina, el cobro monetario y el arqueo de turnos de caja.
+- **Responsabilidad y restricciones:** Separa el estado culinario (`pendiente`, `confirmado`, `preparando`, `listo`, `entregado`) del estado financiero (`cobrado_at`). Impide entregar un pedido que no esté simultáneamente `listo` y pagado (`cobrado_at != null`), e impide cancelar pedidos ya cobrados sin proceso de devolución.
+- **Dependencias:** `App\Support\Money`, modelos `Pedido`, `DetallePedido`, `Caja`, `MovimientoStock`.
+- **Implementación:** `src/app/Http/Controllers/PedidoController.php`, `src/app/Http/Controllers/VentaController.php`, `src/app/Http/Controllers/CocinaController.php`, `src/app/Http/Controllers/CajaController.php`.
+
+#### 6. Módulo de Inventario (Stock), Gastos, Reportes y Auditoría
+- **Descripción general y propósito:** Controla las existencias de insumos/productos, los egresos operativos, la rentabilidad del negocio y el registro forense de cambios.
+- **Responsabilidad y restricciones:** Permite registrar entradas, salidas y ajustes de stock con motivo obligatorio; emite alertas de productos con `stock &lt;= stock_minimo`; calcula ventas brutas, costos y ganancia neta por fecha de cobro; y registra en la tabla `auditoria` los valores anteriores y nuevos de cada operación crítica.
+- **Dependencias:** Modelos `MovimientoStock`, `Gasto`, `Auditoria`, `Pedido` y `App\Models\Concerns\Auditable`.
+- **Implementación:** `src/app/Http/Controllers/StockController.php`, `src/app/Http/Controllers/GastoController.php`, `src/app/Http/Controllers/ReporteController.php`, `src/app/Http/Controllers/DashboardController.php`, `src/app/Http/Controllers/AuditoriaController.php`.
+
+---
+
+### 2.4. Dependencias Externas y Decisiones de Diseño Tecnológico
+
+| Tecnología / Librería | Versión | Propósito en el Proyecto | Justificación de la Decisión de Diseño (¿Por qué esta y no otra?) |
+| --- | :---: | --- | --- |
+| **PHP (FPM-Alpine)** | `^8.4` | Lenguaje de programación de servidor | Ofrece tipado estricto, alto rendimiento con JIT/OPcache y un consumo mínimo de RAM (~40 MB) sobre imagen Alpine Linux. |
+| **Laravel Framework** | `^13.17` | Framework backend principal | Provee un contenedor de inyección de dependencias robusto, Eloquent ORM, sistema nativo de Rate Limiting, validaciones y migraciones seguras. |
+| **Laravel Sanctum** | `^4.0` | Autenticación por tokens API | Más ligero y directo que OAuth2/Passport para aplicaciones SPA y clientes móviles, almacenando tokens con hash SHA-256. |
+| **PostgreSQL** | `16` | Motor de base de datos relacional | Superior a MySQL en el manejo de bloqueos de fila (`FOR UPDATE`), tipos `UUID` nativos, campos `JSON` y cumplimiento estricto de transacciones ACID bajo alta concurrencia. |
+| **Nginx** | `1.31` | Servidor web y proxy FastCGI | Maneja miles de conexiones concurrentes con arquitectura asíncrona por eventos antes de delegar peticiones dinámicas a PHP-FPM. |
+| **Alpine.js** | `3.x` | Reactividad en interfaz de usuario | Servido localmente sin requerir pasos complejos de compilación Node/Vite en producción, manteniendo el panel rápido y ligero. |
+| **Grafana k6** | `2.x` | Pruebas de carga y estrés | Escrito en Go; permite simular cientos de usuarios virtuales con una fracción de la memoria que consume Apache JMeter. |
+| **PHPUnit** | `^12.5` | Pruebas unitarias y de integración | Estándar industrial en PHP que permite validar las 100 pruebas funcionales y de seguridad en ~21 segundos. |
+
+---
+
+## 3. Diseño del Modelo de Datos
+
+### 3.1. Entidades y Relaciones (Formato Language-Agnostic)
+
+El modelo de datos relacional se compone de **12 entidades de dominio** centradas alrededor de la entidad raíz `RESTAURANTES`:
+
+1. **RESTAURANTES:** Entidad raíz del aislamiento multi-tenant. Posee `id`, `nombre`, `slug` (identificador único para URL pública), `telefono` y `activo`.
+2. **USERS:** Operadores del restaurante. Se relaciona muchos-a-uno con `RESTAURANTES`. Posee `id`, `restaurante_id`, `name`, `email` (único), `password` (hash Bcrypt), `rol`, `permisos_personalizados` (estructura clave-valor booleana) y `activo`.
+3. **CATEGORIAS:** Clasificación del menú. Se relaciona muchos-a-uno con `RESTAURANTES`. Posee `id`, `restaurante_id`, `nombre`, `orden` y `activo`.
+4. **PRODUCTOS:** Ítems comercializables. Se relaciona muchos-a-uno con `RESTAURANTES` y opcionalmente con `CATEGORIAS`. Posee `id`, `nombre`, `descripcion`, `precio`, `costo`, `stock`, `stock_minimo`, `imagen` y `activo`.
+5. **CAJAS:** Turnos operativos de cobro. Se relaciona muchos-a-uno con `RESTAURANTES` y `USERS`. Posee `id`, `saldo_inicial`, `efectivo_contado`, `efectivo_esperado`, `diferencia` y `cerrada_at`.
+6. **MOVIMIENTOS_CAJA:** Ingresos o retiros manuales de efectivo dentro de un turno. Se relaciona muchos-a-uno con `CAJAS`. Posee `id`, `caja_id`, `tipo` (`entrada`/`salida`), `monto` y `motivo`.
+7. **PEDIDOS:** Órdenes de compra públicas o internas. Se relaciona muchos-a-uno con `RESTAURANTES`, opcionalmente con `USERS` (quien atiende) y `CAJAS` (donde se cobra). Posee `id`, `cliente_nombre`, `cliente_telefono`, `tipo` (`mesa`, `delivery`, `recojo`), `mesa`, `direccion`, `estado`, `medio_pago`, `total`, `recibido`, `vuelto`, `clave_operacion` y `cobrado_at`.
+8. **DETALLE_PEDIDOS:** Líneas de productos dentro de un pedido (congela el precio y costo histórico del momento de la venta). Se relaciona muchos-a-uno con `PEDIDOS` y `PRODUCTOS`.
+9. **MOVIMIENTOS_STOCK:** Kardex inmutable de inventario. Se relaciona con `RESTAURANTES`, `PRODUCTOS`, `USERS` y `PEDIDOS`. Posee `tipo` (`entrada`, `salida`, `ajuste`), `cantidad` y `motivo`.
+10. **GASTOS:** Egresos contables del negocio. Se relaciona con `RESTAURANTES` y `USERS`. Posee `descripcion`, `monto`, `categoria` y `fecha`.
+11. **AUDITORIA:** Bitácora de seguridad. Registra `accion`, `modelo`, `modelo_id`, `datos_anteriores` y `datos_nuevos`.
+12. **SOLICITUDES_PUBLICAS:** Registro de idempotencia. Almacena `restaurante_id`, `clave` (UUID), `huella` (hash SHA-256 del payload) y `pedido_id`.
+
+---
+
+### 3.2. Diagrama Entidad-Relación (Editable)
+
+&gt; El siguiente diagrama está escrito en sintaxis **Mermaid ER**, por lo que es directamente **editable** desde cualquier editor de texto o en [Mermaid Live Editor](https://mermaid.live). Asimismo, se encuentra disponible en formato DBML en `src/docs/DIAGRAMA-BD.md`.
+
+&lt;!--MERMAID_PLACEHOLDER_3--&gt;
+
+---
+
+### 3.3. Clasificación de Datos (Entrada, Internos y Salida)
+
+#### 1. Datos de Entrada
+- **Cuerpos JSON (`application/json`):** Payloads enviados en peticiones `POST` y `PATCH` (credenciales de acceso, datos de productos, arreglos de ítems de pedidos `[{&#x27;producto_id&#x27;: int, &#x27;cantidad&#x27;: int}]`, montos recibidos en caja).
+- **Parámetros de Ruta y Query String:** Identificadores de recursos (`{id}`), `slug` alfanumérico del restaurante (`[a-z0-9\-]+`), filtros de búsqueda (`?q=texto`, `?categoria_id=1`, `?estado=pendiente`, `?desde=YYYY-MM-DD&amp;hasta=YYYY-MM-DD`).
+- **Metadatos y Cabeceras HTTP:** Token de autorización (`Authorization: Bearer &lt;token&gt;`), dirección IP del cliente (utilizada por el Rate Limiter) y cabecera `Accept: application/json`.
+
+#### 2. Datos Internos
+- **Representación Monetaria en Centavos (`int`):** Todo importe decimal de entrada se transforma internamente a un entero de centavos mediante `Money::cents()` para realizar sumas, multiplicaciones y restas de vuelto sin errores de coma flotante.
+- **Huellas de Idempotencia (`char(64)`):** Cadena hexadecimal SHA-256 generada sobre el arreglo de entrada ordenado por clave (`ksort`) para detectar colisiones o alteraciones en reintentos de pedidos públicos.
+- **Mapas de Permisos Resueltos (`array&lt;string, bool&gt;`):** Vector asociativo de 10 capacidades booleanas calculado en tiempo de ejecución combinando la matriz base del rol con el JSON `permisos_personalizados` del usuario.
+
+#### 3. Datos de Salida
+- **Respuestas JSON de Dominio:** Objetos y colecciones paginadas serializadas (ocultando campos sensibles como `password`, `remember_token` y condicionalemente `costo`), acompañados de su código de estado HTTP semántico.
+- **Cabeceras de Diagnóstico (`Server-Timing`):** En entorno local, el middleware `TiemposRespuesta` inyecta métricas de tiempo de aplicación (`app;dur=...`) y tiempo/conteo de consultas SQL (`db;dur=...;desc=&quot;N consultas&quot;`).
+- **Vistas HTML Renderizadas (`text/html`):** Documentos Blade para la página en construcción (`/`), el panel administrativo (`/panel`), la carta pública (`/c/{slug}`) y la página de error 404.
+
+---
+
+## 4. Descripción de Procesos y Servicios Ofrecidos por el Sistema
+
+### 4.1. Registro Transaccional de Restaurante y Dueño
+
+- **Propósito:** Dar de alta un nuevo restaurante en la plataforma y crear su cuenta propietaria garantizando que nunca exista un restaurante sin dueño ni un dueño sin restaurante.
+- **Datos de Entrada:** `restaurante` (string, máx 120), `telefono` (string opcional, máx 30), `name` (string, máx 120), `email` (email único en tabla `users`), `password` (string, mín 8 caracteres).
+- **Datos de Salida:** Código `HTTP 201 Created` con `{ token: string, user: Object, restaurante: Object }`.
+
+&lt;!--MERMAID_PLACEHOLDER_4--&gt;
+
+---
+
+### 4.2. Autenticación (Login) y Control de Rate Limiting
+
+- **Propósito:** Verificar la identidad de un operador, proteger el endpoint contra ataques de fuerza bruta por diccionario y emitir una credencial de acceso.
+- **Datos de Entrada:** `email` (string, obligatorio), `password` (string, obligatorio).
+- **Datos de Salida:** Código `HTTP 200 OK` con `{ token, user, restaurante }` o errores `401` / `403` / `429`.
+
+**Pseudo-algoritmo del proceso:**</code></pre>text</p>
+<p>PROCEDIMIENTO Login(email, password, ip_cliente):</p>
+<p>llave_rate_limit <- Minusculas(email) + "|" + ip_cliente</p>
+<p>SI ConteoIntentosUltimoMinuto(llave_rate_limit) >= LIMITE_LOGIN_POR_MINUTO (5) ENTONCES</p>
+<p>RETORNAR HTTP 429 ("Demasiadas peticiones. Espera un momento e intenta de nuevo.")</p>
+<p>FIN SI</p>
+<p>usuario <- BuscarUsuarioPorEmail(email)</p>
+<p>SI usuario NO EXISTE O NO VerificarBcrypt(password, usuario.password_hash) ENTONCES</p>
+<p>IncrementarContadorRateLimit(llave_rate_limit)</p>
+<p>RETORNAR HTTP 401 ("Credenciales incorrectas.")</p>
+<p>FIN SI</p>
+<p>SI usuario.activo == FALSO O usuario.restaurante.activo == FALSO ENTONCES</p>
+<p>RETORNAR HTTP 403 ("Esta cuenta está desactivada.")</p>
+<p>FIN SI</p>
+<p>token <- EmitirTokenSanctum(usuario)</p>
+<p>permisos <- ResolverPermisos(usuario.rol, usuario.permisos_personalizados)</p>
+<p>RETORNAR HTTP 200 (token, usuario + permisos, usuario.restaurante)</p>
+<p>FIN PROCEDIMIENTO</p>
+<p><pre><code class="language-">---
+
+### 4.3. Recepción de Pedidos Públicos con Idempotencia y Control de Stock
+
+- **Propósito:** Procesar pedidos de comensales desde la carta pública garantizando que los precios se calculen en el servidor, el stock nunca sea negativo bajo compras simultáneas y los reintentos por fallos de red no dupliquen el pedido.
+- **Datos de Entrada:** `slug` (en URL), `clave_operacion` (UUID), `cliente_nombre` (string), `tipo` (`mesa`|`delivery`|`recojo`), `cliente_telefono` (obligatorio si es `delivery`), `mesa` (obligatorio si es `mesa`), `direccion` (obligatorio si es `delivery`), `items` (arreglo de `{producto_id, cantidad}`).
+- **Datos de Salida:** Código `HTTP 201 Created` con `{ pedido_id, estado, total, items }`, o errores `404`, `409`, `422`, `429`.
+
+&lt;!--MERMAID_PLACEHOLDER_5--&gt;
+
+---
+
+### 4.4. Control Centralizado de Respuestas y Errores HTTP
+
+- **Propósito:** Asegurar que cualquier fallo de validación, autenticación, autorización, ruta inexistente o excepción interna devuelva siempre una estructura JSON predecible para los clientes de la API y vistas amigables para el navegador web.
+- **Implementación en `src/bootstrap/app.php`:**
+
+| Código HTTP | Condición de Disparo | Respuesta Entregada por el Sistema |
+| :---: | --- | --- |
+| `200` / `201` | Operación exitosa / Recurso creado | Objeto JSON con los datos solicitados o creados. |
+| `401` | `AuthenticationException` (Sin token o token inválido) | `{&quot;message&quot;: &quot;No autenticado. Inicia sesión para continuar.&quot;}` |
+| `403` | Usuario sin el rol o permiso requerido / Cuenta inactiva | `{&quot;message&quot;: &quot;No tienes permiso para esta acción.&quot;}` |
+| `404` | Ruta inexistente o modelo de otro restaurante | En API: `{&quot;message&quot;: &quot;Recurso no encontrado.&quot;}`&lt;br&gt;En Web: Vista HTML `resources/views/errors/404.blade.php`. |
+| `405` | Verbo HTTP incorrecto para la ruta | `{&quot;message&quot;: &quot;Método no permitido para esta ruta.&quot;}` |
+| `409` | Reutilización de `clave_operacion` con distinto pedido o borrado de producto con ventas | `{&quot;message&quot;: &quot;La operación entra en conflicto con un pedido anterior...&quot;}` |
+| `422` | `ValidationException` (Datos de entrada inválidos o falta de stock) | `{&quot;message&quot;: &quot;...&quot;, &quot;errors&quot;: {&quot;campo&quot;: [&quot;detalle&quot;]}}` |
+| `429` | Exceso de peticiones por minuto (`ThrottleRequestsException`) | `{&quot;message&quot;: &quot;Demasiadas peticiones. Espera un momento e intenta de nuevo.&quot;}` |
+| `500` | Excepción no controlada (`Throwable` con `APP_DEBUG=false`) | `{&quot;message&quot;: &quot;Error interno del servidor.&quot;}` *(Oculta detalles de BD y rutas internas)*. |
+
+---
+
+## 5. Documentación Técnica — Especificación API y TDAs
+
+### 5.1. Sinopsis de Invocación del Sistema
+
+#### Invocación del Entorno de Ejecución</code></pre>text</p>
+<p>SINOPSIS</p>
+<p>iniciar-rapido.cmd</p>
+<p>docker compose -f docker-compose.yml [-f docker-compose.fast.yml] <comando> [opciones]</p>
+<p>PARÁMETROS DE CONFIGURACIÓN (.env y src/.env)</p>
+<p>DB_PASSWORD                 (Obligatorio) Contraseña del motor PostgreSQL 16.</p>
+<p>APP_KEY                     (Obligatorio) Llave AES-256-CBC en base64 generada por artisan key:generate.</p>
+<p>APP_DEBUG                   (Opcional)    Booleano [true|false]. Por defecto: true en local, false en producción.</p>
+<p>LIMITE_LOGIN_POR_MINUTO     (Opcional)    Entero positivo. Por defecto: 5 intentos/minuto.</p>
+<p>LIMITE_PEDIDOS_POR_MINUTO   (Opcional)    Entero positivo. Por defecto: 10 peticiones/minuto.</p>
+<p><pre><code class="language-">#### Invocación de Peticiones HTTP a la API</code></pre>text</p>
+<p>SINOPSIS HTTP</p>
+<p><MÉTODO> http://localhost:8080/api/<recurso> HTTP/1.1</p>
+<p>Accept: application/json</p>
+<p>Content-Type: application/json</p>
+<p>Authorization: Bearer <token_sanctum>   (Obligatorio en rutas protegidas)</p>
+<p>```</p>
+<hr>
+<h3>5.2. Especificación Detallada de Endpoints REST</h3>
+<h4>A. Endpoints Públicos (Sin Autenticación)</h4>
+<table>
+  <tr>
+    <th>Método y Ruta</th>
+    <th>Propósito</th>
+    <th>Argumentos (Obligatorios / Opcionales)</th>
+    <th>Respuesta Exitosa</th>
+  </tr>
+  <tr>
+    <td><code>POST /api/auth/registro-dueno</code><br><em>(Rate Limit: 10/min)</em></td>
+    <td>Registra un restaurante nuevo y su usuario dueño.</td>
+    <td><strong>Obligatorios:</strong> <code>restaurante</code> (string), <code>name</code> (string), <code>email</code> (email), <code>password</code> (string, min:8).<br><strong>Opcional:</strong> <code>telefono</code> (string, por defecto <code>null</code>).</td>
+    <td><code>201 Created</code><br><code>{token, user, restaurante}</code></td>
+  </tr>
+  <tr>
+    <td><code>POST /api/auth/login</code><br><em>(Rate Limit: 5/min)</em></td>
+    <td>Inicia sesión y devuelve token Sanctum.</td>
+    <td><strong>Obligatorios:</strong> <code>email</code> (email), <code>password</code> (string).</td>
+    <td><code>200 OK</code><br><code>{token, user, restaurante}</code></td>
+  </tr>
+  <tr>
+    <td><code>GET /api/carta/{slug}</code></td>
+    <td>Obtiene el menú público activo del restaurante.</td>
+    <td><strong>Obligatorio en URL:</strong> <code>slug</code> (string).</td>
+    <td><code>200 OK</code><br><code>{restaurante, carta: [...]}</code></td>
+  </tr>
+  <tr>
+    <td><code>POST /api/carta/{slug}/pedidos</code><br><em>(Rate Limit: 10/min)</em></td>
+    <td>Crea un pedido desde la carta pública descontando stock.</td>
+    <td><strong>Obligatorios:</strong> <code>clave_operacion</code> (uuid), <code>cliente_nombre</code> (string), <code>tipo</code> (<code>mesa</code>\</td>
+    <td><code>delivery</code>\</td>
+    <td><code>recojo</code>), <code>items</code> (array de <code>{producto_id, cantidad}</code>).<br><strong>Condicionales/Opcionales:</strong> <code>mesa</code>, <code>cliente_telefono</code>, <code>direccion</code>, <code>notas</code>.</td>
+    <td><code>201 Created</code><br><code>{pedido_id, estado, total, items}</code></td>
+  </tr>
+</table>
+<h4>B. Endpoints Protegidos (Requieren <code>Authorization: Bearer <token></code>)</h4>
+<table>
+  <tr>
+    <th>Método y Ruta</th>
+    <th>Permiso / Rol</th>
+    <th>Propósito</th>
+    <th>Argumentos y Comportamiento por Defecto</th>
+    <th>Respuesta</th>
+  </tr>
+  <tr>
+    <td><code>GET /api/auth/me</code></td>
+    <td>Autenticado</td>
+    <td>Retorna el usuario actual con su restaurante y permisos.</td>
+    <td>Sin argumentos.</td>
+    <td><code>200 OK</code> (<code>User</code>)</td>
+  </tr>
+  <tr>
+    <td><code>POST /api/auth/logout</code></td>
+    <td>Autenticado</td>
+    <td>Revoca el token de acceso actual.</td>
+    <td>Sin argumentos.</td>
+    <td><code>200 OK</code> (<code>{message}</code>)</td>
+  </tr>
+  <tr>
+    <td><code>PATCH /api/perfil</code></td>
+    <td>Todos los roles</td>
+    <td>Actualiza nombre, correo o contraseña propia.</td>
+    <td><strong>Opcionales:</strong> <code>name</code>, <code>email</code>, <code>password</code> (min:8), <code>password_actual</code> (obligatorio al cambiar correo o clave).</td>
+    <td><code>200 OK</code> (<code>{user, token?}</code>)</td>
+  </tr>
+  <tr>
+    <td><code>GET /api/categorias</code></td>
+    <td><code>pedidos</code>, <code>productos</code> o <code>stock</code></td>
+    <td>Lista las categorías del restaurante ordenadas.</td>
+    <td>Sin argumentos. Ordena por <code>orden ASC, nombre ASC</code>.</td>
+    <td><code>200 OK</code> (<code>Categoria[]</code>)</td>
+  </tr>
+  <tr>
+    <td><code>POST /api/categorias</code></td>
+    <td><code>productos</code></td>
+    <td>Crea una categoría nueva.</td>
+    <td><strong>Obligatorio:</strong> <code>nombre</code> (string, único en el restaurante).<br><strong>Opcional:</strong> <code>orden</code> (int, por defecto <code>0</code>).</td>
+    <td><code>201 Created</code> (<code>Categoria</code>)</td>
+  </tr>
+  <tr>
+    <td><code>PATCH /api/categorias/{id}</code></td>
+    <td><code>productos</code></td>
+    <td>Actualiza nombre u orden de una categoría.</td>
+    <td><strong>Opcionales:</strong> <code>nombre</code> (string), <code>orden</code> (int).</td>
+    <td><code>200 OK</code> (<code>Categoria</code>)</td>
+  </tr>
+  <tr>
+    <td><code>DELETE /api/categorias/{id}</code></td>
+    <td><code>productos</code></td>
+    <td>Elimina una categoría (los productos asociados quedan con <code>categoria_id = null</code>).</td>
+    <td><strong>Obligatorio en URL:</strong> <code>id</code>.</td>
+    <td><code>200 OK</code> (<code>{message}</code>)</td>
+  </tr>
+  <tr>
+    <td><code>GET /api/productos</code></td>
+    <td><code>pedidos</code>, <code>productos</code> o <code>stock</code></td>
+    <td>Lista productos paginados (20 por página).</td>
+    <td><strong>Opcionales (Query):</strong> <code>categoria_id</code> (int), <code>q</code> (búsqueda por nombre), <code>page</code> (int, por defecto <code>1</code>).</td>
+    <td><code>200 OK</code> (Paginador JSON)</td>
+  </tr>
+  <tr>
+    <td><code>GET /api/productos/{id}</code></td>
+    <td><code>pedidos</code>, <code>productos</code> o <code>stock</code></td>
+    <td>Obtiene el detalle de un producto.</td>
+    <td><strong>Obligatorio en URL:</strong> <code>id</code>. Oculta <code>costo</code> si no tiene permiso <code>productos</code>.</td>
+    <td><code>200 OK</code> (<code>Producto</code>)</td>
+  </tr>
+  <tr>
+    <td><code>POST /api/productos</code></td>
+    <td><code>productos</code></td>
+    <td>Crea un producto y su movimiento de stock inicial.</td>
+    <td><strong>Obligatorios:</strong> <code>nombre</code> (string), <code>precio</code> (numeric).<br><strong>Opcionales:</strong> <code>categoria_id</code>, <code>descripcion</code>, <code>costo</code> (<code>0</code>), <code>stock</code> (<code>0</code>), <code>stock_minimo</code> (<code>0</code>), <code>activo</code> (<code>true</code>).</td>
+    <td><code>201 Created</code> (<code>Producto</code>)</td>
+  </tr>
+  <tr>
+    <td><code>PATCH /api/productos/{id}</code></td>
+    <td><code>productos</code></td>
+    <td>Actualiza datos comerciales de un producto.</td>
+    <td><strong>Opcionales:</strong> <code>nombre</code>, <code>precio</code>, <code>costo</code>, <code>categoria_id</code>, <code>descripcion</code>, <code>stock_minimo</code>, <code>activo</code>. <em>(Prohíbe <code>stock</code>)</em>.</td>
+    <td><code>200 OK</code> (<code>Producto</code>)</td>
+  </tr>
+  <tr>
+    <td><code>DELETE /api/productos/{id}</code></td>
+    <td><code>productos</code></td>
+    <td>Elimina un producto sin historial de ventas.</td>
+    <td><strong>Obligatorio en URL:</strong> <code>id</code>. Si tiene pedidos previos retorna <code>409 Conflict</code>.</td>
+    <td><code>200 OK</code> / <code>409 Conflict</code></td>
+  </tr>
+  <tr>
+    <td><code>GET /api/usuarios</code></td>
+    <td><code>equipo</code></td>
+    <td>Lista el personal del restaurante.</td>
+    <td>Sin argumentos.</td>
+    <td><code>200 OK</code> (<code>User[]</code>)</td>
+  </tr>
+  <tr>
+    <td><code>POST /api/usuarios</code></td>
+    <td><code>equipo</code></td>
+    <td>Crea un empleado con rol y permisos personalizados.</td>
+    <td><strong>Obligatorios:</strong> <code>name</code>, <code>email</code>, <code>password</code>, <code>rol</code> (<code>cajero</code>\</td>
+    <td><code>mozo</code>\</td>
+    <td><code>mozo_cajero</code>\</td>
+    <td><code>cocina</code>).<br><strong>Opcional:</strong> <code>permisos_personalizados</code> (array).</td>
+    <td><code>201 Created</code> (<code>User</code>)</td>
+  </tr>
+  <tr>
+    <td><code>PATCH /api/usuarios/{id}</code></td>
+    <td><code>equipo</code></td>
+    <td>Modifica datos, rol, permisos o estado activo de un empleado.</td>
+    <td><strong>Opcionales:</strong> <code>name</code>, <code>email</code>, <code>password</code>, <code>rol</code>, <code>activo</code>, <code>permisos_personalizados</code>.</td>
+    <td><code>200 OK</code> (<code>User</code>)</td>
+  </tr>
+  <tr>
+    <td><code>POST /api/pedidos</code><br><code>POST /api/ventas</code></td>
+    <td><code>pedidos</code></td>
+    <td>Registra un pedido interno desde el panel o POS.</td>
+    <td><strong>Obligatorios:</strong> <code>cliente_nombre</code>, <code>tipo</code>, <code>items</code>.<br><strong>Opcional:</strong> <code>cobrar_ahora</code> (bool), <code>medio_pago</code>, <code>recibido</code>, <code>clave_operacion</code>.</td>
+    <td><code>201 Created</code> (<code>Pedido</code>)</td>
+  </tr>
+  <tr>
+    <td><code>GET /api/pedidos</code></td>
+    <td><code>pedidos</code>, <code>caja</code> o <code>cancelar</code></td>
+    <td>Lista pedidos del restaurante con filtros.</td>
+    <td><strong>Opcionales (Query):</strong> <code>estado</code>, <code>fecha</code> (<code>YYYY-MM-DD</code>). Paginado a 20.</td>
+    <td><code>200 OK</code> (Paginador JSON)</td>
+  </tr>
+  <tr>
+    <td><code>PATCH /api/pedidos/{id}/estado</code></td>
+    <td><code>pedidos</code>, <code>cocina</code> o <code>cancelar</code></td>
+    <td>Cambia el estado operativo del pedido.</td>
+    <td><strong>Obligatorio:</strong> <code>estado</code> (<code>confirmado</code>\</td>
+    <td><code>preparando</code>\</td>
+    <td><code>listo</code>\</td>
+    <td><code>entregado</code>\</td>
+    <td><code>cancelado</code>).</td>
+    <td><code>200 OK</code> (<code>Pedido</code>)</td>
+  </tr>
+  <tr>
+    <td><code>POST /api/ventas/{id}/cobrar</code></td>
+    <td><code>caja</code></td>
+    <td>Registra el cobro de un pedido en el turno de caja activo.</td>
+    <td><strong>Obligatorio:</strong> <code>medio_pago</code> (<code>efectivo</code>\</td>
+    <td><code>yape</code>\</td>
+    <td><code>plin</code>\</td>
+    <td><code>tarjeta</code>).<br><strong>Condicional:</strong> <code>recibido</code> (numeric >= total si es <code>efectivo</code>).</td>
+    <td><code>200 OK</code> (<code>Pedido</code>)</td>
+  </tr>
+  <tr>
+    <td><code>POST /api/caja/abrir</code><br><code>POST /api/caja/movimientos</code><br><code>POST /api/caja/cerrar</code></td>
+    <td><code>caja</code></td>
+    <td>Abre turno de caja, registra ingresos/salidas manuales y cierra turno con arqueo.</td>
+    <td><code>abrir</code>: <code>saldo_inicial</code> (numeric >= 0).<br><code>movimientos</code>: <code>tipo</code>, <code>monto</code>, <code>motivo</code>.<br><code>cerrar</code>: <code>efectivo_contado</code> (numeric >= 0).</td>
+    <td><code>201</code> / <code>200 OK</code> (<code>Caja</code>)</td>
+  </tr>
+  <tr>
+    <td><code>GET /api/stock/movimientos</code><br><code>POST /api/stock/movimientos</code></td>
+    <td><code>stock</code></td>
+    <td>Consulta el kardex o registra entradas/salidas/ajustes de stock.</td>
+    <td><code>POST</code>: <strong>Obligatorios:</strong> <code>producto_id</code>, <code>tipo</code> (<code>entrada</code>\</td>
+    <td><code>salida</code>\</td>
+    <td><code>ajuste</code>), <code>cantidad</code> (int > 0), <code>motivo</code> (string).</td>
+    <td><code>200</code> / <code>201</code> (<code>MovimientoStock</code>)</td>
+  </tr>
+  <tr>
+    <td><code>GET /api/gastos</code><br><code>POST /api/gastos</code></td>
+    <td><code>gastos</code></td>
+    <td>Lista o registra gastos operativos del restaurante.</td>
+    <td><code>POST</code>: <strong>Obligatorios:</strong> <code>descripcion</code>, <code>monto</code> (numeric > 0), <code>fecha</code> (date). <strong>Opcional:</strong> <code>categoria</code>.</td>
+    <td><code>200</code> / <code>201</code> (<code>Gasto</code>)</td>
+  </tr>
+  <tr>
+    <td><code>GET /api/reportes/resumen</code><br><code>GET /api/reportes/dashboard</code></td>
+    <td><code>reportes</code></td>
+    <td>Calcula métricas de ventas, costos, gastos y utilidad neta.</td>
+    <td><strong>Opcionales (Query):</strong> <code>desde</code> (<code>YYYY-MM-DD</code>), <code>hasta</code> (<code>YYYY-MM-DD</code>). Por defecto: mes en curso.</td>
+    <td><code>200 OK</code> (Resumen financiero)</td>
+  </tr>
+  <tr>
+    <td><code>GET /api/auditoria</code></td>
+    <td>Rol <code>dueno</code></td>
+    <td>Lista el historial forense de cambios del restaurante.</td>
+    <td><strong>Opcionales (Query):</strong> <code>accion</code>, <code>fecha</code>. Paginado a 50 registros.</td>
+    <td><code>200 OK</code> (Paginador JSON)</td>
+  </tr>
+</table>
+<hr>
+<h3>5.3. Tipos de Datos Abstractos (TDAs) y Estructuras Internas</h3>
+<h4>1. TDA <code>App\Support\Money</code> (Aritmética Monetaria de Punto Fijo)</h4>
+<ul>
+  <li><strong>Propósito y representación:</strong> Representa valores monetarios como números enteros de <strong>centavos</strong> (<code>int</code> de 64 bits en PHP), evitando la representación binaria en punto flotante (<code>float</code> IEEE 754) que produce errores de redondeo (ej. <code>0.1 + 0.2 = 0.30000000000000004</code>).</li>
+  <li><strong>Limitaciones de la representación:</strong></li>
+  <li>Admite únicamente hasta <strong>2 decimales de precisión</strong> (<code>/^-?[0-9]+(\.[0-9]{1,2})?$/</code>). Si recibe 3 o más decimales, lanza <code>InvalidArgumentException</code>.</li>
+  <li>El límite superior operativo validado en ventas es de <code>99,999,999.99</code> (<code>9999999999</code> centavos), compatible con columnas <code>DECIMAL(12,2)</code> en PostgreSQL.</li>
+  <li><strong>Métodos provistos:</strong></li>
+  <li><code>Money::cents(string|int|float $value): int</code> — Convierte un importe decimal a su valor exacto en centavos conservando el signo.</li>
+  <li><code>Money::decimal(int $value): string</code> — Formatea un entero de centavos a cadena decimal exacta con dos posiciones (<code>"25.50"</code>).</li>
+</ul>
+<h4>2. TDA <code>App\Support\RestauranteContexto</code> (Contexto de Aislamiento Multi-Tenant)</h4>
+<ul>
+  <li><strong>Propósito y representación:</strong> Encapsula el identificador del restaurante activo (<code>?int $restauranteId</code>) durante el ciclo de vida de una petición HTTP o un trabajo de cola.</li>
+  <li><strong>Limitaciones de la representación:</strong></li>
+  <li>Se registra en el contenedor de Laravel mediante <code>scoped()</code> (se destruye al finalizar cada petición) y nunca como <code>singleton</code> global para impedir contaminación de estado entre peticiones concurrentes.</li>
+  <li>Exige un identificador entero mayor o igual a <code>1</code>; de lo contrario lanza <code>LogicException</code>.</li>
+  <li><strong>Métodos provistos:</strong></li>
+  <li><code>id(): int</code> — Resuelve el ID del restaurante activo o falla de forma segura (<code>fail-closed</code>) si no existe contexto ni sesión.</li>
+  <li><code>ejecutar(int $restauranteId, Closure $operacion): mixed</code> — Ejecuta una clausura bajo el contexto de un restaurante específico y restaura el estado previo en un bloque <code>finally</code>.</li>
+</ul>
+<h4>3. TDA <code>App\Support\Permisos</code> (Matriz de Control de Acceso Híbrido RBAC + ACL)</h4>
+<ul>
+  <li><strong>Propósito y representación:</strong> Estructura inmutable que define el catálogo de 9 permisos operativos/administrativos y resuelve los privilegios efectivos de cada usuario combinando su rol base con sobrescrituras individuales (<code>permisos_personalizados</code>).</li>
+  <li><strong>Limitaciones de la representación:</strong></li>
+  <li>El rol <code>dueno</code> es inmutable: siempre posee todos los permisos en <code>true</code> y no puede ser degradado mediante sobrescrituras JSON.</li>
+  <li>Cualquier clave desconocida fuera de <code>Permisos::CATALOGO</code> o valor no booleano es ignorado silenciosamente para prevenir inyección de privilegios.</li>
+  <li><strong>Métodos provistos:</strong></li>
+  <li><code>Permisos::base(string $rol): array</code> — Devuelve el mapa booleano por defecto del rol.</li>
+  <li><code>Permisos::resolver(string $rol, array $cambios = []): array</code> — Aplica las delegaciones o revocaciones personalizadas sobre la plantilla del rol.</li>
+</ul>
+<hr>
+<h2>6. Conclusiones</h2>
+<p>A partir del diseño, implementación, contenedorización y pruebas de estrés del sistema <strong>Adbana SaaS</strong> durante esta primera fase del <strong>25%</strong>, se establecen las siguientes <strong>6 conclusiones técnicas</strong>:</p>
+<p>1. <strong>Resolución del cuello de botella de Entrada/Salida (I/O) en Docker sobre Windows:</strong></p>
+<p>Durante las primeras pruebas de ejecución local, se detectó que montar el directorio <code>vendor/</code> directamente desde el sistema de archivos NTFS de Windows hacia el contenedor Linux provocaba tiempos de respuesta superiores a <code>2.5 segundos</code>. La política adoptada fue desacoplar las dependencias de Composer hacia un volumen nativo de Linux (<code>vendor_runtime</code> en <code>docker-compose.fast.yml</code>) junto con la activación de <code>OPcache</code>. Esta decisión redujo el tiempo promedio de respuesta a <strong><code>63.27 ms</code> con 50 usuarios</strong> y <strong><code>80.08 ms</code> con 100 usuarios</strong>, logrando un <strong>0% de caídas</strong> en lectura.</p>
+<p>2. <strong>Eficacia del Rate Limiting como mecanismo de defensa ante saturación (HTTP 429):</strong></p>
+<p>Al someter el endpoint de creación de pedidos públicos (<code>POST /api/carta/{slug}/pedidos</code>) a una ráfaga de 300 compras en 2 segundos desde una misma dirección IP con <code>Grafana k6</code>, se comprobó que el limitador de tasa (<code>LIMITE_PEDIDOS_POR_MINUTO=10</code>) procesó exactamente los primeros 10 pedidos (<code>HTTP 201</code>) y rechazó de inmediato los 290 restantes con estado <strong><code>HTTP 429 Too Many Requests</code></strong>. Esto demuestra empíricamente que el servidor protege la base de datos PostgreSQL frente a ataques de fuerza bruta o denegación de servicio sin degradar las consultas de lectura paralelas.</p>
+<p>3. <strong>Prevención de sobreventa (<em>Overselling</em>) e inconsistencias mediante Bloqueo Pesimista e Idempotencia:</strong></p>
+<p>Uno de los casos particulares más críticos en sistemas de restaurantes es cuando múltiples comensales intentan comprar simultáneamente las últimas unidades de un producto o reenvían el formulario por inestabilidad de red móvil. La adopción de bloqueos de fila en PostgreSQL (<code>SELECT ... FOR UPDATE</code> ordenando los IDs de producto ascendentemente para evitar <em>deadlocks</em>) combinada con el registro de llaves UUID y huellas SHA-256 (<code>PedidoPublicoIdempotente</code>) garantizó que el stock nunca quede en valores negativos ni se dupliquen cobros ante reintentos.</p>
+<p>4. <strong>Eliminación de errores de redondeo financiero mediante el TDA <code>Money</code> en centavos:</strong></p>
+<p>Se identificó que operar precios, subtotales y vueltos con números de coma flotante (<code>float</code>) introduce desviaciones decimales en cierres de caja masivos. Al restringir toda la lógica aritmética interna a números enteros de centavos mediante el Tipo de Dato Abstracto <code>App\Support\Money</code>, se aseguró exactitud contable absoluta entre los montos cobrados, los movimientos de caja y los reportes de ganancias.</p>
+<p>5. <strong>Seguridad por defecto en arquitectura Multi-Tenant (<code>Fail-Closed</code>):</strong></p>
+<p>Para evitar el riesgo de que una consulta olvide filtrar el identificador del restaurante y exponga datos de otro negocio, se implementó el alcance global <code>BelongsToRestaurante</code> junto al servicio <code>RestauranteContexto</code>. Esta política asegura que cualquier intento de lectura sin contexto explícito falle de forma controlada (<code>LogicException</code>), complementándose con el cifrado Bcrypt de factor 12 para contraseñas y la ocultación automática de costos a roles operativos.</p>
+<p>6. <strong>Preparación de Infraestructura Cloud Híbrida (Docker Local + AWS RDS) para Escalabilidad:</strong></p>
+<p>La estandarización del entorno en contenedores (<code>Nginx</code>, <code>PHP 8.4-FPM</code>, <code>PostgreSQL 16</code>, <code>Redis</code> y <code>Adminer</code>) junto con el aprovisionamiento temprano de la instancia administrada <strong><code>adbana-db</code> en Amazon Web Services (AWS RDS PostgreSQL 16)</strong> demuestra una paridad completa entre el entorno de desarrollo y la nube. Esta experiencia permite afrontar las entregas del <strong>80% (1,000 - 5,000 VUs)</strong> y <strong>100% (10,000 - 50,000 VUs)</strong> con una base sólida, requiriendo únicamente escalar horizontalmente los contenedores de aplicación y ajustar los pools de conexiones en la nube.</p>
+</div>
+</body>
+</html>

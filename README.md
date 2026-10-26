@@ -90,4 +90,4 @@ Prueba local k6 de lectura de carta durante 30 segundos, con pausa de 1 segundo 
 
 Resúmenes originales en `k6/resultado-50.json` y `k6/resultado-100.json`. Son lecturas de un endpoint en el entorno local: no acreditan cobros concurrentes, capacidad cloud ni una prueba prolongada de estrés.
 
-Más detalles: [Permisos](src/docs/PERMISOS.md), [rendimiento local](src/docs/RENDIMIENTO-LOCAL.md), [consistencia](src/docs/CONSISTENCIA-Y-ESCALABILIDAD.md) y [demo AR](src/public/demo-ar/README.md).
+Más detalles: [Documentación completa (25%)](src/docs/DOCUMENTACION-PROYECTO-25.md), [Diagrama de base de datos](src/docs/DIAGRAMA-BD.md), [Permisos](src/docs/PERMISOS.md), [rendimiento local](src/docs/RENDIMIENTO-LOCAL.md), [consistencia](src/docs/CONSISTENCIA-Y-ESCALABILIDAD.md) y [demo AR](src/public/demo-ar/README.md).

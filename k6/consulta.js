@@ -1,6 +1,8 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
+const BASE = __ENV.BASE_URL || 'http://host.docker.internal:8080';
+
 export const options = {
   vus: Number(__ENV.USUARIOS || 50),
   duration: '30s',
@@ -13,7 +15,7 @@ export const options = {
 
 export default function () {
   const respuesta = http.get(
-    'http://host.docker.internal:8080/api/carta/yurakuna',
+    `${BASE}/api/carta/yurakuna`,
     { headers: { Accept: 'application/json' } }
   );
 

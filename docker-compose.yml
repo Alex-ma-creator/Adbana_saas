@@ -30,5 +30,13 @@ services:
   redis:
     image: redis:7-alpine
 
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8085:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on: [db]
+
 volumes:
   pgdata:
