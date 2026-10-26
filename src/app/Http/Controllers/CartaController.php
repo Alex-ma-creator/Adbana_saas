@@ -8,6 +8,9 @@ use App\Models\MovimientoStock;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Restaurante;
+use App\Support\Money;
+use App\Support\PedidoPublicoIdempotente;
+use App\Support\RestauranteContexto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -79,6 +82,7 @@ class CartaController extends Controller
         $restaurante = Restaurante::where('slug', $slug)->where('activo', true)->firstOrFail();
 
         $datos = $request->validate([
+            'clave_operacion'     => ['required', 'uuid'],
             'cliente_nombre'      => ['required', 'string', 'max:120'],
             'cliente_telefono'    => ['required_if:tipo,delivery', 'nullable', 'string', 'max:30'],
             'tipo'                => ['required', 'in:mesa,delivery,recojo'],
@@ -102,76 +106,45 @@ class CartaController extends Controller
             ]);
         }
 
-        // Los precios salen SIEMPRE de la base de datos, nunca del cliente.
-        $productos = Producto::withoutGlobalScopes()
-            ->where('restaurante_id', $restaurante->id)
-            ->where('activo', true)
-            ->whereIn('id', $cantidades->keys())
-            ->get()
-            ->keyBy('id');
-
-        if ($productos->count() !== $cantidades->count()) {
-            throw ValidationException::withMessages([
-                'items' => 'Hay productos que ya no están disponibles.',
-            ]);
-        }
-
-        $pedido = DB::transaction(function () use ($datos, $restaurante, $cantidades, $productos) {
-            $pedido = Pedido::create([
-                'restaurante_id'   => $restaurante->id,
-                'cliente_nombre'   => $datos['cliente_nombre'],
-                'cliente_telefono' => $datos['cliente_telefono'] ?? null,
-                'tipo'             => $datos['tipo'],
-                'mesa'             => $datos['mesa'] ?? null,
-                'direccion'        => $datos['direccion'] ?? null,
-                'notas'            => $datos['notas'] ?? null,
-                'estado'           => 'pendiente',
-                'total'            => 0,
-            ]);
-
-            $total = 0;
-
-            foreach ($cantidades as $productoId => $cantidad) {
-                $producto = $productos[$productoId];
-
-                // Descuento atómico: solo resta si todavía alcanza el stock.
-                $filas = Producto::withoutGlobalScopes()
-                    ->where('id', $producto->id)
-                    ->where('stock', '>=', $cantidad)
-                    ->decrement('stock', $cantidad);
-
-                if ($filas === 0) {
-                    throw ValidationException::withMessages([
-                        'items' => "Stock insuficiente de {$producto->nombre}.",
+        $pedido = app(RestauranteContexto::class)->ejecutar($restaurante->id, function () use ($datos, $restaurante, $cantidades) {
+            return app(PedidoPublicoIdempotente::class)->ejecutar(
+                $restaurante->id, $datos['clave_operacion'], $datos,
+                function () use ($datos, $restaurante, $cantidades) {
+                    $productos = Producto::where('activo', true)->whereIn('id', $cantidades->keys())
+                        ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                    if ($productos->count() !== $cantidades->count()) {
+                        throw ValidationException::withMessages(['items' => 'Hay productos que ya no están disponibles.']);
+                    }
+                    $pedido = Pedido::create(collect($datos)->except(['items', 'clave_operacion'])->all() + [
+                        'restaurante_id' => $restaurante->id, 'estado' => 'pendiente', 'total' => 0,
                     ]);
+                    $total = 0;
+                    foreach ($cantidades as $productoId => $cantidad) {
+                        $producto = $productos[$productoId];
+                        if ($producto->stock < $cantidad) {
+                            throw ValidationException::withMessages(['items' => "Stock insuficiente de {$producto->nombre}."]);
+                        }
+                        $subtotal = Money::cents($producto->precio) * $cantidad;
+                        $total += $subtotal;
+                        if ($total > 9999999999) {
+                            throw ValidationException::withMessages(['items' => 'El total excede el máximo permitido.']);
+                        }
+                        $producto->decrement('stock', $cantidad);
+                        DetallePedido::create([
+                            'pedido_id' => $pedido->id, 'producto_id' => $producto->id,
+                            'nombre_producto' => $producto->nombre, 'cantidad' => $cantidad,
+                            'precio_unitario' => $producto->precio, 'costo_unitario' => $producto->costo,
+                            'subtotal' => Money::decimal($subtotal),
+                        ]);
+                        MovimientoStock::create([
+                            'restaurante_id' => $restaurante->id, 'producto_id' => $producto->id,
+                            'pedido_id' => $pedido->id, 'tipo' => 'salida', 'cantidad' => $cantidad, 'motivo' => 'pedido',
+                        ]);
+                    }
+                    $pedido->update(['total' => Money::decimal($total)]);
+                    return $pedido->load('detalles');
                 }
-
-                $subtotal = round($producto->precio * $cantidad, 2);
-                $total += $subtotal;
-
-                DetallePedido::create([
-                    'pedido_id'       => $pedido->id,
-                    'producto_id'     => $producto->id,
-                    'nombre_producto' => $producto->nombre,
-                    'cantidad'        => $cantidad,
-                    'precio_unitario' => $producto->precio,
-                    'costo_unitario'  => $producto->costo,
-                    'subtotal'        => $subtotal,
-                ]);
-
-                MovimientoStock::create([
-                    'restaurante_id' => $restaurante->id,
-                    'producto_id'    => $producto->id,
-                    'pedido_id'      => $pedido->id,
-                    'tipo'           => 'salida',
-                    'cantidad'       => $cantidad,
-                    'motivo'         => 'pedido',
-                ]);
-            }
-
-            $pedido->update(['total' => round($total, 2)]);
-
-            return $pedido->load('detalles');
+            );
         });
 
         Cache::forget("carta:$slug");

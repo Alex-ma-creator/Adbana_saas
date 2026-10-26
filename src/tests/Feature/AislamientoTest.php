@@ -35,6 +35,7 @@ class AislamientoTest extends TestCase
 
         // El pedido del restaurante A entra por la carta pública, como en la vida real.
         $this->pedidoId = $this->postJson("/api/carta/{$this->restauranteA->slug}/pedidos", [
+            'clave_operacion' => (string) \Illuminate\Support\Str::uuid(),
             'cliente_nombre' => 'Ana',
             'tipo'           => 'recojo',
             'items'          => [['producto_id' => $this->productoA->id, 'cantidad' => 1]],

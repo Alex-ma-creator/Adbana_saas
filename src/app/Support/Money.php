@@ -2,12 +2,18 @@
 
 namespace App\Support;
 
+use InvalidArgumentException;
+
 final class Money
 {
     public static function cents(string|int|float $value): int
     {
-        $parts = explode('.', (string) $value, 2);
-        return ((int) $parts[0] * 100) + (int) str_pad($parts[1] ?? '', 2, '0');
+        $text = is_float($value) ? number_format($value, 2, '.', '') : (string) $value;
+        if (! preg_match('/^(-?)([0-9]+)(?:\.([0-9]{1,2}))?$/', $text, $parts)) {
+            throw new InvalidArgumentException('Importe monetario inválido.');
+        }
+        $cents = ((int) $parts[2] * 100) + (int) str_pad($parts[3] ?? '', 2, '0');
+        return $parts[1] === '-' ? -$cents : $cents;
     }
 
     public static function decimal(int $value): string

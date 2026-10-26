@@ -27,6 +27,7 @@ class RolesTest extends TestCase
         $this->producto = $this->crearProducto($this->restaurante, ['precio' => 18.50, 'costo' => 9.20]);
 
         $this->pedidoId = $this->postJson("/api/carta/{$this->restaurante->slug}/pedidos", [
+            'clave_operacion' => (string) \Illuminate\Support\Str::uuid(),
             'cliente_nombre' => 'Ana',
             'tipo'           => 'recojo',
             'items'          => [['producto_id' => $this->producto->id, 'cantidad' => 1]],

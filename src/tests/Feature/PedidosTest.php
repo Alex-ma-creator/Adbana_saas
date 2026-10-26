@@ -25,6 +25,7 @@ class PedidosTest extends TestCase
     private function pedir(array $items, array $extra = [])
     {
         return $this->postJson("/api/carta/{$this->restaurante->slug}/pedidos", array_merge([
+            'clave_operacion' => (string) \Illuminate\Support\Str::uuid(),
             'cliente_nombre' => 'Ana',
             'tipo'           => 'recojo',
             'items'          => $items,

@@ -2,29 +2,22 @@
 
 namespace App\Models\Concerns;
 
+use App\Support\RestauranteContexto;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 trait BelongsToRestaurante
 {
     protected static function bootBelongsToRestaurante(): void
     {
         static::addGlobalScope('restaurante', function (Builder $builder) {
-            $user = Auth::user();
-
-            if ($user && $user->rol !== 'superadmin') {
-                $builder->where(
-                    $builder->getModel()->getTable() . '.restaurante_id',
-                    $user->restaurante_id
-                );
-            }
+            $builder->where($builder->getModel()->qualifyColumn('restaurante_id'), app(RestauranteContexto::class)->id());
         });
 
         static::creating(function ($model) {
-            $user = Auth::user();
-
-            if ($user && $user->rol !== 'superadmin' && empty($model->restaurante_id)) {
-                $model->restaurante_id = $user->restaurante_id;
+            // Los procesos públicos y de importación pueden proporcionar un ID validado.
+            // Las lecturas posteriores siempre necesitan contexto, incluso para superadmin.
+            if (empty($model->restaurante_id)) {
+                $model->restaurante_id = app(RestauranteContexto::class)->id();
             }
         });
     }

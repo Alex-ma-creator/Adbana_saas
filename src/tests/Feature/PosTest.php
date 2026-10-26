@@ -36,7 +36,7 @@ class PosTest extends TestCase
         $this->postJson('/api/caja/abrir', ['saldo_inicial' => 100])->assertCreated();
         $id = $this->vender(['total' => 1])->assertCreated()->assertJsonPath('total', '8.00')->json('id');
         $this->postJson("/api/ventas/$id/cobrar", ['medio_pago' => 'efectivo', 'recibido' => '10.00'])
-            ->assertOk()->assertJsonPath('vuelto', '2.00')->assertJsonPath('estado', 'entregado');
+            ->assertOk()->assertJsonPath('vuelto', '2.00')->assertJsonPath('estado', 'pendiente');
         $this->assertDatabaseHas('productos', ['id' => $this->producto->id, 'stock' => 19]);
         $this->getJson('/api/caja/actual')->assertJsonPath('resumen.efectivo_esperado', '108.00');
     }
@@ -111,13 +111,16 @@ class PosTest extends TestCase
         $this->get('/login')->assertOk()->assertSee('Ingresar');
     }
 
-    public function test_entregar_por_la_ruta_anterior_tambien_exige_caja_y_registra_cobro(): void
+    public function test_entrega_no_cobra_y_exige_pago_y_preparacion(): void
     {
         $id = $this->vender()->assertCreated()->json('id');
         $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'entregado', 'medio_pago' => 'yape'])->assertUnprocessable();
         $this->postJson('/api/caja/abrir', ['saldo_inicial' => 0])->assertCreated();
-        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'entregado', 'medio_pago' => 'yape'])
-            ->assertOk()->assertJsonPath('recibido', '8.00');
+        $this->postJson("/api/ventas/$id/cobrar", ['medio_pago' => 'yape'])->assertOk()->assertJsonPath('estado', 'pendiente');
+        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'entregado'])->assertUnprocessable();
+        foreach (['confirmado', 'preparando', 'listo', 'entregado'] as $estado) {
+            $this->patchJson("/api/pedidos/$id/estado", ['estado' => $estado])->assertOk();
+        }
         $this->getJson('/api/caja/actual')->assertJsonPath('resumen.ventas_por_medio.yape', '8.00');
         $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'cancelado'])->assertUnprocessable();
     }

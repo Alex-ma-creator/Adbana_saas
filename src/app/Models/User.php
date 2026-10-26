@@ -34,6 +34,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'activo' => 'boolean',
+            'permisos_personalizados' => 'array',
         ];
     }
 
@@ -44,13 +45,13 @@ class User extends Authenticatable
 
     public function getPermisosAttribute(): array
     {
-        $activo = $this->activo && $this->restaurante?->activo;
-        return [
-            'pedidos' => $activo && in_array($this->rol, ['dueno', 'cajero', 'mozo', 'mozo_cajero'], true),
-            'cocina' => $activo && in_array($this->rol, ['dueno', 'cajero', 'cocina'], true),
-            'caja' => $activo && in_array($this->rol, ['dueno', 'cajero', 'mozo_cajero'], true),
-            'administracion' => $activo && $this->rol === 'dueno',
-        ];
+        $permisos = \App\Support\Permisos::resolver($this->rol, $this->permisos_personalizados ?? []);
+        if (! $this->activo || ! $this->restaurante?->activo) $permisos = array_fill_keys(array_keys($permisos), false);
+        return $permisos + ['administracion' => $this->activo && $this->restaurante?->activo && $this->esDueno()];
+    }
+    public function tienePermiso(string $permiso): bool
+    {
+        return $this->permisos[$permiso] ?? false;
     }
 
     public function esSuperadmin(): bool

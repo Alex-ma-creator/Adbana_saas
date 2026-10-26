@@ -15,11 +15,11 @@ class ProductoController extends Controller
     {
         $productos = Producto::with('categoria:id,nombre')
             ->when($request->filled('categoria_id'), fn ($q) => $q->where('categoria_id', $request->integer('categoria_id')))
-            ->when($request->filled('q'), fn ($q) => $q->where('nombre', 'ilike', '%' . $request->input('q') . '%'))
+            ->when($request->filled('q'), fn ($q) => $q->whereLike('nombre', '%' . $request->input('q') . '%'))
             ->orderBy('nombre')
             ->paginate(20);
 
-        if (! $request->user()->esDueno()) {
+        if (! $request->user()->tienePermiso('productos')) {
             $productos->getCollection()->each->makeHidden('costo');
         }
 
@@ -30,7 +30,7 @@ class ProductoController extends Controller
     {
         $producto = Producto::with('categoria:id,nombre')->findOrFail($id);
 
-        if (! $request->user()->esDueno()) {
+        if (! $request->user()->tienePermiso('productos')) {
             $producto->makeHidden('costo');
         }
 

@@ -18,11 +18,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(\App\Http\Middleware\TiemposRespuesta::class);
+
         // La API no tiene una ruta de login HTML para redirigir invitados.
         $middleware->redirectGuestsTo(null);
 
         $middleware->alias([
             'rol' => RolMiddleware::class,
+            'permiso' => \App\Http\Middleware\PermisoMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -49,6 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $mensajes = [
                 403 => 'No tienes permiso para esta acción.',
                 404 => 'Recurso no encontrado.',
+                409 => 'La operación entra en conflicto con un pedido anterior. Usa la misma clave solo para el mismo pedido.',
                 405 => 'Método no permitido para esta ruta.',
                 419 => 'La sesión expiró. Vuelve a intentarlo.',
                 429 => 'Demasiadas peticiones. Espera un momento e intenta de nuevo.',

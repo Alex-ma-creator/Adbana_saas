@@ -30,6 +30,7 @@ class ReporteTest extends TestCase
     private function pedir(int $cantidad): int
     {
         return $this->postJson("/api/carta/{$this->restaurante->slug}/pedidos", [
+            'clave_operacion' => (string) \Illuminate\Support\Str::uuid(),
             'cliente_nombre' => 'Ana',
             'tipo'           => 'recojo',
             'items'          => [['producto_id' => $this->producto->id, 'cantidad' => $cantidad]],

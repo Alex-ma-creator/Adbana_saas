@@ -83,6 +83,7 @@ export function comprar(data) {
   const res = http.post(
     `${BASE}/carta/${data.slug}/pedidos`,
     JSON.stringify({
+      clave_operacion: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const n = Math.floor(Math.random()*16); return (c === 'x' ? n : (n & 3) | 8).toString(16); }),
       cliente_nombre: 'Cliente K6',
       tipo: 'recojo',
       items: [{ producto_id: data.productoId, cantidad: 1 }],

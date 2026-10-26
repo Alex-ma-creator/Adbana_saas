@@ -1,0 +1,9 @@
+# Perfil local: mantiene vendor en el disco Linux de Docker, fuera del bind mount de Windows.
+# Arrancar mediante iniciar-rapido.cmd para preparar las dependencias antes de recrear app.
+services:
+  app:
+    volumes:
+      - vendor_runtime:/var/www/vendor
+
+volumes:
+  vendor_runtime:

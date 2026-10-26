@@ -30,10 +30,10 @@ Abrir http://localhost:8080/panel. Ingresar con una cuenta existente o usar Crea
 
 - Caja por operador. Los gastos contables y los movimientos de efectivo se registran por separado para evitar asumir que todo gasto se paga de caja.
 - Mesas agrupadas por la identificación escrita en el pedido. Todavía no hay plano de salón, reservas, división de cuenta ni unión de pedidos.
-- Cobro y entrega se realizan juntos. No se implementó el pago anticipado de comandas.
+- Cobro y entrega son independientes. Puede cobrarse un pedido antes de prepararlo; la entrega exige estado listo y pago registrado. Los pedidos pagados no se cancelan directamente: falta implementar devoluciones monetarias.
 - Cocina se actualiza cada 15 segundos; no usa WebSockets.
 - Las ventas anteriores a esta migración conservan sus datos y no se asignan retroactivamente a cajas nuevas.
-- El reporte diario existente agrupa por fecha de creación del pedido. Una venta iniciada un día y cobrada otro requiere un reporte por fecha de cobro adicional.
+- El reporte de ventas usa cobrado_at y rangos diarios semiabiertos. Incluye pedidos pagados aunque todavía estén en cocina. No recalcula fechas de cobro de pedidos históricos que no las tengan.
 - Stock por producto terminado. No hay recetas ni consumo de ingredientes.
 - No incluye facturación SUNAT, devoluciones monetarias, pagos divididos, integración con impresora térmica, modo offline o múltiples sucursales.
 - Para producción faltan pruebas reales de concurrencia, respaldo y recuperación, HTTPS, revisión de sesiones y observabilidad. Esta implementación no certifica capacidad empresarial.

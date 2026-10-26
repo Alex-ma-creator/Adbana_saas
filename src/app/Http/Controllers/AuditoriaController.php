@@ -19,8 +19,8 @@ class AuditoriaController extends Controller
         return Auditoria::with('user:id,name,rol')
             ->when($request->filled('tabla'), fn ($q) => $q->where('tabla', $request->input('tabla')))
             ->when($request->filled('user_id'), fn ($q) => $q->where('user_id', $request->integer('user_id')))
-            ->when($request->filled('desde'), fn ($q) => $q->whereDate('created_at', '>=', $request->input('desde')))
-            ->when($request->filled('hasta'), fn ($q) => $q->whereDate('created_at', '<=', $request->input('hasta')))
+            ->when($request->filled('desde'), fn ($q) => $q->where('created_at', '>=', \Carbon\CarbonImmutable::parse($request->input('desde'))->startOfDay()))
+            ->when($request->filled('hasta'), fn ($q) => $q->where('created_at', '<', \Carbon\CarbonImmutable::parse($request->input('hasta'))->startOfDay()->addDay()))
             ->orderByDesc('id')
             ->paginate(20);
     }

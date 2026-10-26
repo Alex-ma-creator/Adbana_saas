@@ -45,6 +45,8 @@ document.addEventListener('alpine:init', () => {
                 this.categorias = datos.carta;
                 document.title = datos.restaurante.nombre + ' | Carta';
                 this.restaurarCarrito();
+                const pendiente = sessionStorage.getItem('pedido-pendiente:' + this.slug);
+                if (pendiente) { this.abierto = true; this.errores = ['Hay un pedido sin confirmar. Al enviar reintentaremos ese mismo pedido, sin usar los cambios del formulario.']; }
             } catch (e) {
                 if (!silencioso) {
                     this.error = 'No pudimos cargar la carta. Revisa tu conexión e intenta de nuevo.';
@@ -149,36 +151,38 @@ document.addEventListener('alpine:init', () => {
 
         async enviar() {
             if (this.enviando) return;
-            this.errores = this.validar();
+            const tienePendiente = sessionStorage.getItem('pedido-pendiente:' + this.slug);
+            this.errores = tienePendiente ? [] : this.validar();
             if (this.errores.length) return;
 
             this.enviando = true;
 
             try {
                 const f = this.form;
-
+                const almacenamiento = 'pedido-pendiente:' + this.slug;
+                let pendiente = JSON.parse(sessionStorage.getItem(almacenamiento) || 'null');
+                if (!pendiente) {
+                    pendiente = {
+                        clave_operacion: crypto.randomUUID(),
+                        cliente_nombre: f.cliente_nombre.trim(), cliente_telefono: f.cliente_telefono.trim() || null,
+                        tipo: f.tipo, mesa: f.tipo === 'mesa' ? f.mesa.trim() : null,
+                        direccion: f.tipo === 'delivery' ? f.direccion.trim() : null, notas: f.notas.trim() || null,
+                        items: Object.entries(this.carrito).map(([id,cantidad]) => ({producto_id:Number(id),cantidad})),
+                    };
+                    sessionStorage.setItem(almacenamiento, JSON.stringify(pendiente));
+                }
                 const r = await fetch('/api/carta/' + encodeURIComponent(this.slug) + '/pedidos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                    body: JSON.stringify({
-                        cliente_nombre: f.cliente_nombre.trim(),
-                        cliente_telefono: f.cliente_telefono.trim() || null,
-                        tipo: f.tipo,
-                        mesa: f.tipo === 'mesa' ? f.mesa.trim() : null,
-                        direccion: f.tipo === 'delivery' ? f.direccion.trim() : null,
-                        notas: f.notas.trim() || null,
-                        items: Object.entries(this.carrito).map(([id, cantidad]) => ({
-                            producto_id: Number(id),
-                            cantidad,
-                        })),
-                    }),
+                    body: JSON.stringify(pendiente),
                 });
 
                 const datos = await r.json().catch(() => ({}));
 
                 if (r.status === 201) {
+                    sessionStorage.removeItem(almacenamiento);
                     this.pedido = datos;
-                    this.nombrePedido = f.cliente_nombre.trim();
+                    this.nombrePedido = pendiente.cliente_nombre;
                     this.carrito = {};
                     this.guardarCarrito();
                     this.abierto = false;
@@ -188,15 +192,16 @@ document.addEventListener('alpine:init', () => {
                 }
 
                 if (r.status === 422 && datos.errors) {
+                    sessionStorage.removeItem(almacenamiento);
                     this.errores = Object.values(datos.errors).flat();
                     this.cargar(true); // actualiza lo que quedó agotado
                 } else if (r.status === 429) {
                     this.errores = ['Hiciste muchos pedidos seguidos. Espera un minuto e intenta de nuevo.'];
                 } else {
-                    this.errores = ['No pudimos enviar tu pedido. Intenta de nuevo.'];
+                    this.errores = [r.status === 409 ? 'La clave corresponde a otro pedido. Contacta al restaurante antes de volver a pedir.' : 'No pudimos confirmar el pedido. Reintenta: se enviará el mismo pedido, sin duplicarlo.'];
                 }
             } catch (e) {
-                this.errores = ['Sin conexión. Revisa tu internet e intenta de nuevo.'];
+                this.errores = ['Sin conexión. Reintenta: conservamos el mismo pedido para evitar duplicarlo.'];
             } finally {
                 this.enviando = false;
             }

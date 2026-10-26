@@ -72,7 +72,7 @@ class VentaController extends Controller
             'recibido' => ['required_if:medio_pago,efectivo', 'nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
         ]);
         $pedido = DB::transaction(function () use ($request, $id, $data) {
-            $caja = app(CajaController::class)->bloquear($request);
+            // Todas las operaciones sobre un pedido bloquean primero el pedido.
             $pedido = Pedido::lockForUpdate()->findOrFail($id);
             // Un reintento devuelve el comprobante existente, sin duplicar el cobro.
             if ($pedido->cobrado_at) {
@@ -81,12 +81,13 @@ class VentaController extends Controller
             if ($pedido->estado === 'cancelado' || $pedido->estado === 'entregado') {
                 throw ValidationException::withMessages(['pedido' => 'Este pedido no admite cobros.']);
             }
+            $caja = app(CajaController::class)->bloquear($request);
             $total = Money::cents($pedido->total);
             $recibido = $data['medio_pago'] === 'efectivo' ? Money::cents($data['recibido']) : $total;
             if ($recibido < $total) {
                 throw ValidationException::withMessages(['recibido' => 'El efectivo recibido no alcanza para pagar.']);
             }
-            $pedido->update(['caja_id' => $caja->id, 'medio_pago' => $data['medio_pago'], 'recibido' => Money::decimal($recibido), 'vuelto' => Money::decimal($recibido - $total), 'cobrado_at' => now(), 'estado' => 'entregado']);
+            $pedido->update(['caja_id' => $caja->id, 'medio_pago' => $data['medio_pago'], 'recibido' => Money::decimal($recibido), 'vuelto' => Money::decimal($recibido - $total), 'cobrado_at' => now()]);
             return $pedido;
         }, 3);
         return $this->respuesta($request, $pedido);

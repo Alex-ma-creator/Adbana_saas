@@ -41,7 +41,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token'       => $user->createToken('api')->plainTextToken,
-            'user'        => $user,
+            'user'        => $user->load('restaurante')->append('permisos'),
             'restaurante' => $restaurante,
         ], 201);
     }
@@ -65,7 +65,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $user->createToken('api')->plainTextToken,
-            'user'  => $user,
+            'user'  => $user->load('restaurante')->append('permisos'),
         ]);
     }
 

@@ -57,9 +57,7 @@ trait PreparaDatos
             $this->patchJson("/api/pedidos/{$pedidoId}/estado", ['estado' => $estado])->assertOk();
         }
 
-        $this->patchJson("/api/pedidos/{$pedidoId}/estado", [
-            'estado'     => 'entregado',
-            'medio_pago' => 'yape',
-        ])->assertOk();
+        $this->postJson("/api/ventas/{$pedidoId}/cobrar", ['medio_pago' => 'yape'])->assertOk();
+        $this->patchJson("/api/pedidos/{$pedidoId}/estado", ['estado' => 'entregado'])->assertOk();
     }
 }

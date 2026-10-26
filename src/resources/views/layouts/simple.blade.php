@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('titulo') | Adbana</title>
+    <title>@yield('titulo') | Adbana</title><link rel="icon" type="image/svg+xml" href="/images/adbana-logo.svg">
     <style>
         :root {
             --fondo: #fff8f1;
@@ -67,7 +67,7 @@
 </head>
 <body>
     <main>
-        <p class="marca">ADBANA</p>
+        <p class="marca"><img src="/images/adbana-logo.svg" alt="" width="25" height="33" style="vertical-align:middle;margin-right:8px">ADBANA</p>
         @yield('contenido')
     </main>
 </body>

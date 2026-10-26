@@ -22,7 +22,8 @@ class CajaController extends Controller
     {
         $data = $request->validate(['saldo_inicial' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99']]);
         $caja = DB::transaction(function () use ($request, $data) {
-            User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            $operador = User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            abort_unless($operador->tienePermiso('caja'), 403);
             if (Caja::where('user_id', $request->user()->id)->whereNull('cerrada_at')->exists()) {
                 throw ValidationException::withMessages(['caja' => 'Ya tienes una caja abierta.']);
             }
@@ -72,8 +73,10 @@ class CajaController extends Controller
     {
         $pagos = Pedido::where('caja_id', $caja->id)->whereNotNull('cobrado_at')
             ->selectRaw('medio_pago, SUM(total) as total')->groupBy('medio_pago')->pluck('total', 'medio_pago');
-        $entradas = DB::table('movimientos_caja')->where('caja_id', $caja->id)->where('tipo', 'entrada')->sum('monto');
-        $salidas = DB::table('movimientos_caja')->where('caja_id', $caja->id)->where('tipo', 'salida')->sum('monto');
+        $movimientos = DB::table('movimientos_caja')->where('caja_id', $caja->id)
+            ->selectRaw('COALESCE(SUM(CASE WHEN tipo = ? THEN monto ELSE 0 END), 0) as entradas, COALESCE(SUM(CASE WHEN tipo = ? THEN monto ELSE 0 END), 0) as salidas', ['entrada', 'salida'])->first();
+        $entradas = $movimientos->entradas;
+        $salidas = $movimientos->salidas;
         return [
             'ventas_por_medio' => $pagos,
             'entradas' => Money::decimal(Money::cents($entradas)),

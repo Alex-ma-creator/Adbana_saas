@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
+    <link rel="stylesheet" href="/demo-ar/acceso-carta.css">
     <script src="/js/carta.js"></script>
     <script defer src="/js/alpine.min.js"></script>
 </head>
@@ -24,6 +25,12 @@
             <h1 x-text="restaurante && restaurante.nombre"></h1>
             <p>Arma tu pedido y envíalo directo al restaurante.</p>
         </header>
+
+        <aside class="demo-carta" aria-label="Demostración de carta interactiva">
+            <div><span class="demo-carta-tag">EXPERIENCIA INTERACTIVA · DEMO</span><h2>Mira un plato antes de pedir.</h2><p>Explora nuestra pizza de prueba en 3D o con la cámara en realidad aumentada.</p></div>
+            <a class="demo-carta-link" href="{{ '/demo-ar/?carta='.rawurlencode('/c/'.$slug) }}">Probar 3D y realidad aumentada <span aria-hidden="true">↗</span></a>
+            <small>Demostración visual. No añade productos al pedido.</small>
+        </aside>
 
         <nav class="chips" aria-label="Categorías">
             <template x-for="c in categorias" :key="c.id ?? 'otros'">
@@ -130,7 +137,6 @@
 
     <div class="fondo" x-show="pedido" @click.self="pedido = null">
         <div class="hoja">
-            <p class="icono" aria-hidden="true">✅</p>
             <h2>¡Pedido recibido!</h2>
             <p>
                 Pedido <strong x-text="'#' + (pedido ? pedido.pedido_id : '')"></strong>

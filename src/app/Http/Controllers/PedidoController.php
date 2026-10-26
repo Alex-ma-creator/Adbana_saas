@@ -33,8 +33,8 @@ class PedidoController extends Controller
         $pedidos = Pedido::with('detalles')
             ->when($request->filled('estado'), fn ($q) => $q->whereIn('estado', explode(',', $request->input('estado'))))
             ->when($request->filled('tipo'), fn ($q) => $q->where('tipo', $request->input('tipo')))
-            ->when($request->filled('desde'), fn ($q) => $q->whereDate('created_at', '>=', $request->input('desde')))
-            ->when($request->filled('hasta'), fn ($q) => $q->whereDate('created_at', '<=', $request->input('hasta')))
+            ->when($request->filled('desde'), fn ($q) => $q->where('created_at', '>=', \Carbon\CarbonImmutable::parse($request->input('desde'))->startOfDay()))
+            ->when($request->filled('hasta'), fn ($q) => $q->where('created_at', '<', \Carbon\CarbonImmutable::parse($request->input('hasta'))->startOfDay()->addDay()))
             ->latest()
             ->paginate(20);
 
@@ -60,24 +60,19 @@ class PedidoController extends Controller
 
     public function cambiarEstado(Request $request, string $id)
     {
-        $rol = $request->user()->rol;
         $destino = $request->input('estado');
-        if ($rol === 'cocina' && ! in_array($destino, ['preparando', 'listo'], true)) {
-            abort(403);
-        }
-        if (($rol === 'mozo' && $destino !== 'confirmado') || ($rol === 'mozo_cajero' && ! in_array($destino, ['confirmado', 'entregado'], true))) {
-            abort(403);
-        }
+        $permiso = match ($destino) {
+            'confirmado', 'entregado' => 'pedidos',
+            'preparando', 'listo' => 'cocina',
+            'cancelado' => 'cancelar',
+            default => null,
+        };
+        if ($permiso) abort_unless($request->user()->tienePermiso($permiso), 403);
 
         $datos = $request->validate([
             'estado'     => ['required', 'in:pendiente,confirmado,preparando,listo,entregado,cancelado'],
-            'medio_pago' => ['required_if:estado,entregado', 'nullable', 'in:efectivo,yape,plin,tarjeta'],
         ]);
 
-        // Todas las entregas deben pasar por el mismo cobro y quedar asociadas a caja.
-        if ($datos['estado'] === 'entregado') {
-            return app(VentaController::class)->cobrar($request, $id);
-        }
         $pedido = DB::transaction(function () use ($request, $id, $datos) {
             // Bloquea la fila: evita cancelar dos veces el mismo pedido a la vez.
             $pedido = Pedido::lockForUpdate()->findOrFail($id);
@@ -90,8 +85,14 @@ class PedidoController extends Controller
                 ]);
             }
 
+            if ($datos['estado'] === 'entregado' && ! $pedido->cobrado_at) {
+                throw ValidationException::withMessages(['estado' => 'Registra el cobro antes de entregar.']);
+            }
+            if ($datos['estado'] === 'cancelado' && $pedido->cobrado_at) {
+                throw ValidationException::withMessages(['estado' => 'Un pedido pagado requiere devolución; no puede cancelarse directamente.']);
+            }
             if ($datos['estado'] === 'cancelado') {
-                foreach ($pedido->detalles as $detalle) {
+                foreach ($pedido->detalles()->orderBy('producto_id')->get() as $detalle) {
                     if (! $detalle->producto_id) {
                         continue;
                     }
@@ -114,10 +115,6 @@ class PedidoController extends Controller
 
             $pedido->estado = $datos['estado'];
 
-            if (! empty($datos['medio_pago'])) {
-                $pedido->medio_pago = $datos['medio_pago'];
-            }
-
             $pedido->save();
 
             return $pedido;
@@ -133,7 +130,7 @@ class PedidoController extends Controller
             $pedido->detalles->each->makeHidden('costo_unitario');
         }
 
-        if ($request->user()->rol === 'cocina') {
+        if (! $request->user()->tienePermiso('pedidos') && ! $request->user()->tienePermiso('caja') && ! $request->user()->tienePermiso('cancelar')) {
             return response()->json($pedido->only(['id', 'tipo', 'mesa', 'estado', 'notas', 'created_at']) + [
                 'detalles' => $pedido->detalles->map(fn ($detalle) => $detalle->only(['id', 'pedido_id', 'nombre_producto', 'cantidad'])),
             ]);
