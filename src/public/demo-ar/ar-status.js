@@ -1,1 +1,6 @@
-const statusText=document.querySelector('#status');document.querySelector('a-marker').addEventListener('markerFound',()=>statusText.textContent='Marcador detectado · plato visible');document.querySelector('a-marker').addEventListener('markerLost',()=>statusText.textContent='Busca el marcador HIRO completo');window.addEventListener('camera-init',()=>statusText.textContent='Cámara lista · apunta al marcador HIRO');window.addEventListener('camera-error',()=>statusText.textContent='No se pudo abrir la cámara. Revisa permisos, HTTPS/localhost y la cámara del emulador.');
+const statusText=document.querySelector('#status');
+const show=key=>DemoI18n.status(statusText,key);
+document.querySelector('a-marker').addEventListener('markerFound',()=>show('markerFound'));
+document.querySelector('a-marker').addEventListener('markerLost',()=>show('markerLost'));
+window.addEventListener('camera-init',()=>show('cameraReady'));
+window.addEventListener('camera-error',()=>show('cameraError'));

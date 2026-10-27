@@ -12,11 +12,11 @@ AFRAME.registerComponent('plato-demo', {
       model.setAttribute('scale', [scale, scale, scale].join(' '));
       model.setAttribute('position', [-center.x * scale, -box.min.y * scale, -center.z * scale].join(' '));
       const status = document.querySelector('#model-status');
-      if (status) status.textContent = 'Pizza 3D lista';
+      if (status) DemoI18n.status(status, 'ready');
     });
     model.addEventListener('model-error', () => {
       const status = document.querySelector('#model-status') || document.querySelector('#status');
-      if (status) status.textContent = 'No se pudo cargar el modelo. Recarga la página.';
+      if (status) DemoI18n.status(status, 'modelError');
     });
     this.el.appendChild(model);
   }
