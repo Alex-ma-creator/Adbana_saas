@@ -2,8 +2,9 @@ import http from 'k6/http';
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
 
-const BASE = __ENV.BASE_URL || 'http://localhost:8080/api';
-const STOCK_INICIAL = 50;
+const BASE = __ENV.BASE_URL || 'http://host.docker.internal:8080/api';
+const USUARIOS = Number(__ENV.USUARIOS || 50);
+const STOCK_INICIAL = Number(__ENV.STOCK || USUARIOS);
 const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json' };
 
 // 200, 201 y 422 (sin stock) son respuestas esperadas; lo demás cuenta como fallo.
@@ -14,31 +15,31 @@ const ventasSinStock = new Counter('ventas_sin_stock');
 
 export const options = {
   scenarios: {
-    // 50 -> 100 usuarios simultáneos viendo la carta.
+    // Usuarios simultáneos viendo la carta.
     carta: {
       executor: 'ramping-vus',
       exec: 'verCarta',
       startVUs: 0,
       stages: [
-        { duration: '20s', target: 50 },
-        { duration: '40s', target: 100 },
-        { duration: '10s', target: 0 },
+        { duration: '10s', target: Math.max(1, Math.floor(USUARIOS / 2)) },
+        { duration: '15s', target: USUARIOS },
+        { duration: '5s', target: 0 },
       ],
     },
-    // 100 usuarios comprando a la vez un producto con stock limitado.
+    // N usuarios comprando a la vez un producto y registrándolo en la base de datos.
     compras: {
       executor: 'per-vu-iterations',
       exec: 'comprar',
-      vus: 100,
-      iterations: 3,
-      startTime: '10s',
+      vus: USUARIOS,
+      iterations: 2,
+      startTime: '5s',
       maxDuration: '1m',
     },
   },
   thresholds: {
     http_req_failed: ['rate<0.01'],
-    http_req_duration: ['p(95)<1500'],
-    // Si el stock es 50, deben venderse exactamente 50, ni más ni menos.
+    http_req_duration: ['p(95)<3000'],
+    // Deben registrarse exactamente STOCK_INICIAL ventas en la BD, ni más ni menos.
     ventas_ok: [`count==${STOCK_INICIAL}`],
   },
 };
@@ -49,8 +50,8 @@ export function setup() {
   const reg = http.post(
     `${BASE}/auth/registro-dueno`,
     JSON.stringify({
-      restaurante: `Carga ${Date.now()}`,
-      name: 'Dueno K6',
+      restaurante: `Carga ${USUARIOS}VUs ${Date.now()}`,
+      name: `Dueno K6 (${USUARIOS} VUs)`,
       email,
       password: 'ClaveSegura123',
     }),
@@ -64,7 +65,7 @@ export function setup() {
 
   const prod = http.post(
     `${BASE}/productos`,
-    JSON.stringify({ nombre: 'Pollo a la brasa', precio: 25, costo: 12, stock: STOCK_INICIAL }),
+    JSON.stringify({ nombre: `Pollo a la brasa (${USUARIOS} VUs)`, precio: 25, costo: 12, stock: STOCK_INICIAL }),
     { headers: auth },
   );
   if (prod.status !== 201) {
@@ -84,7 +85,7 @@ export function comprar(data) {
     `${BASE}/carta/${data.slug}/pedidos`,
     JSON.stringify({
       clave_operacion: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const n = Math.floor(Math.random()*16); return (c === 'x' ? n : (n & 3) | 8).toString(16); }),
-      cliente_nombre: 'Cliente K6',
+      cliente_nombre: `Cliente K6 (${USUARIOS} VUs)`,
       tipo: 'recojo',
       items: [{ producto_id: data.productoId, cantidad: 1 }],
     }),

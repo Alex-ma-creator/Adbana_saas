@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\RolMiddleware;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(\App\Http\Middleware\VerificarCorsEstricto::class);
         $middleware->append(\App\Http\Middleware\TiemposRespuesta::class);
 
         // La API no tiene una ruta de login HTML para redirigir invitados.
@@ -41,7 +43,27 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        // 403, 404, 405, 429 y otros errores HTTP.
+        // Caída de conexión a base de datos (503 Service Unavailable).
+        $exceptions->render(function (PDOException $e, Request $request) {
+            if ($e instanceof QueryException) {
+                $codigoSql = (string) $e->getCode();
+                $codigosConexion = ['08000', '08001', '08003', '08004', '08006', '08007', '57P01', '57P02', '57P03', '2002'];
+                if (!in_array($codigoSql, $codigosConexion, true) && !str_contains(strtolower($e->getMessage()), 'connection refused') && !str_contains(strtolower($e->getMessage()), 'could not connect')) {
+                    return null;
+                }
+            }
+
+            if ($request->is('api', 'api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Servicio temporalmente no disponible. La base de datos no responde en este momento.',
+                    'status' => 'degraded',
+                ], 503);
+            }
+
+            return response()->view('errors.503', [], 503);
+        });
+
+        // 403, 404, 405, 429, 503 y otros errores HTTP.
         $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
             if (! $request->is('api', 'api/*')) {
                 return null;
@@ -56,6 +78,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 405 => 'Método no permitido para esta ruta.',
                 419 => 'La sesión expiró. Vuelve a intentarlo.',
                 429 => 'Demasiadas peticiones. Espera un momento e intenta de nuevo.',
+                503 => 'Servicio temporalmente no disponible. Intenta de nuevo en unos instantes.',
             ];
 
             $mensaje = $mensajes[$estado]

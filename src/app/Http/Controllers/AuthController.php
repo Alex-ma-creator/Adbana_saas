@@ -39,8 +39,12 @@ class AuthController extends Controller
             return [$restaurante, $user];
         });
 
+        $minutosExpiracion = (int) config('sanctum.expiration', 480);
+        $expira = $minutosExpiracion > 0 ? now()->addMinutes($minutosExpiracion) : null;
+
         return response()->json([
-            'token'       => $user->createToken('api')->plainTextToken,
+            'token'       => $user->createToken('api', ['*'], $expira)->plainTextToken,
+            'expires_at'  => $expira?->toIso8601String(),
             'user'        => $user->load('restaurante')->append('permisos'),
             'restaurante' => $restaurante,
         ], 201);
@@ -63,9 +67,13 @@ class AuthController extends Controller
             return response()->json(['message' => 'Cuenta desactivada.'], 403);
         }
 
+        $minutosExpiracion = (int) config('sanctum.expiration', 480);
+        $expira = $minutosExpiracion > 0 ? now()->addMinutes($minutosExpiracion) : null;
+
         return response()->json([
-            'token' => $user->createToken('api')->plainTextToken,
-            'user'  => $user->load('restaurante')->append('permisos'),
+            'token'      => $user->createToken('api', ['*'], $expira)->plainTextToken,
+            'expires_at' => $expira?->toIso8601String(),
+            'user'       => $user->load('restaurante')->append('permisos'),
         ]);
     }
 

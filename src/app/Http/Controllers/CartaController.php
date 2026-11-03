@@ -20,7 +20,7 @@ class CartaController extends Controller
 {
     public function mostrar(string $slug)
     {
-        $carta = Cache::remember("carta:$slug", 60, function () use ($slug) {
+        $carta = Cache::remember("carta:$slug", 15, function () use ($slug) {
             $restaurante = Restaurante::where('slug', $slug)->where('activo', true)->first();
 
             if (! $restaurante) {
@@ -79,7 +79,12 @@ class CartaController extends Controller
 
     public function crearPedido(Request $request, string $slug)
     {
-        $restaurante = Restaurante::where('slug', $slug)->where('activo', true)->firstOrFail();
+        $restauranteMeta = Cache::remember("restaurante:meta:$slug", 600, function () use ($slug) {
+            $r = Restaurante::where('slug', $slug)->where('activo', true)->first(['id', 'slug']);
+            return $r ? ['id' => (int) $r->id, 'slug' => (string) $r->slug] : null;
+        });
+        abort_if(! $restauranteMeta, 404);
+        $restauranteId = (int) $restauranteMeta['id'];
 
         $datos = $request->validate([
             'clave_operacion'     => ['required', 'uuid'],
@@ -106,48 +111,105 @@ class CartaController extends Controller
             ]);
         }
 
-        $pedido = app(RestauranteContexto::class)->ejecutar($restaurante->id, function () use ($datos, $restaurante, $cantidades) {
+        $pedido = app(RestauranteContexto::class)->ejecutar($restauranteId, function () use ($datos, $restauranteId, $cantidades, $slug) {
             return app(PedidoPublicoIdempotente::class)->ejecutar(
-                $restaurante->id, $datos['clave_operacion'], $datos,
-                function () use ($datos, $restaurante, $cantidades) {
+                $restauranteId, $datos['clave_operacion'], $datos,
+                function () use ($datos, $restauranteId, $cantidades, $slug) {
                     $productos = Producto::where('activo', true)->whereIn('id', $cantidades->keys())
                         ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
                     if ($productos->count() !== $cantidades->count()) {
                         throw ValidationException::withMessages(['items' => 'Hay productos que ya no están disponibles.']);
                     }
-                    $pedido = Pedido::create(collect($datos)->except(['items', 'clave_operacion'])->all() + [
-                        'restaurante_id' => $restaurante->id, 'estado' => 'pendiente', 'total' => 0,
-                    ]);
-                    $total = 0;
+
+                    $totalCents = 0;
+                    $itemsValidados = [];
                     foreach ($cantidades as $productoId => $cantidad) {
                         $producto = $productos[$productoId];
                         if ($producto->stock < $cantidad) {
                             throw ValidationException::withMessages(['items' => "Stock insuficiente de {$producto->nombre}."]);
                         }
                         $subtotal = Money::cents($producto->precio) * $cantidad;
-                        $total += $subtotal;
-                        if ($total > 9999999999) {
+                        $totalCents += $subtotal;
+                        if ($totalCents > 9999999999) {
                             throw ValidationException::withMessages(['items' => 'El total excede el máximo permitido.']);
                         }
-                        $producto->decrement('stock', $cantidad);
-                        DetallePedido::create([
-                            'pedido_id' => $pedido->id, 'producto_id' => $producto->id,
-                            'nombre_producto' => $producto->nombre, 'cantidad' => $cantidad,
-                            'precio_unitario' => $producto->precio, 'costo_unitario' => $producto->costo,
-                            'subtotal' => Money::decimal($subtotal),
-                        ]);
-                        MovimientoStock::create([
-                            'restaurante_id' => $restaurante->id, 'producto_id' => $producto->id,
-                            'pedido_id' => $pedido->id, 'tipo' => 'salida', 'cantidad' => $cantidad, 'motivo' => 'pedido',
-                        ]);
+                        $itemsValidados[] = [
+                            'producto' => $producto,
+                            'cantidad' => $cantidad,
+                            'subtotal' => $subtotal,
+                        ];
                     }
-                    $pedido->update(['total' => Money::decimal($total)]);
-                    return $pedido->load('detalles');
+
+                    // Crea el pedido directamente con el total definitivo (ahorra 1 UPDATE en BD)
+                    $pedido = Pedido::create(collect($datos)->except(['items', 'clave_operacion'])->all() + [
+                        'restaurante_id' => $restauranteId,
+                        'estado'         => 'pendiente',
+                        'total'          => Money::decimal($totalCents),
+                    ]);
+
+                    $ahora = now();
+                    $detallesRows = [];
+                    $movimientosRows = [];
+                    $detallesColeccion = collect();
+                    $agotoStock = false;
+
+                    foreach ($itemsValidados as $item) {
+                        $producto = $item['producto'];
+                        $cantidad = $item['cantidad'];
+                        DB::table('productos')->where('id', $producto->id)->decrement('stock', $cantidad);
+                        if (($producto->stock - $cantidad) <= 0) {
+                            $agotoStock = true;
+                        }
+
+                        $subtotalDec = Money::decimal($item['subtotal']);
+                        $detallesRows[] = [
+                            'pedido_id'       => $pedido->id,
+                            'producto_id'     => $producto->id,
+                            'nombre_producto' => $producto->nombre,
+                            'cantidad'        => $cantidad,
+                            'precio_unitario' => $producto->precio,
+                            'costo_unitario'  => $producto->costo,
+                            'subtotal'        => $subtotalDec,
+                            'created_at'      => $ahora,
+                            'updated_at'      => $ahora,
+                        ];
+
+                        $detallesColeccion->push(new DetallePedido([
+                            'pedido_id'       => $pedido->id,
+                            'producto_id'     => $producto->id,
+                            'nombre_producto' => $producto->nombre,
+                            'cantidad'        => $cantidad,
+                            'precio_unitario' => $producto->precio,
+                            'costo_unitario'  => $producto->costo,
+                            'subtotal'        => $subtotalDec,
+                        ]));
+
+                        $movimientosRows[] = [
+                            'restaurante_id' => $restauranteId,
+                            'producto_id'    => $producto->id,
+                            'pedido_id'      => $pedido->id,
+                            'tipo'           => 'salida',
+                            'cantidad'       => $cantidad,
+                            'motivo'         => 'pedido',
+                            'created_at'      => $ahora,
+                            'updated_at'      => $ahora,
+                        ];
+                    }
+
+                    DetallePedido::insert($detallesRows);
+                    MovimientoStock::insert($movimientosRows);
+
+                    // Si algún producto se agotó por completo, invalidar caché de la carta pública
+                    if ($agotoStock) {
+                        Cache::forget("carta:$slug");
+                    }
+
+                    // Adjunta la relación directamente sin necesidad de enviar otro SELECT a PostgreSQL
+                    $pedido->setRelation('detalles', $detallesColeccion);
+                    return $pedido;
                 }
             );
         });
-
-        Cache::forget("carta:$slug");
 
         return response()->json([
             'pedido_id' => $pedido->id,

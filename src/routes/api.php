@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CartaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\GastoController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ReporteController;
@@ -12,8 +14,10 @@ use App\Http\Controllers\StockController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/health', HealthController::class);
+
 Route::post('/auth/registro-dueno', [AuthController::class, 'registroDueno'])
-    ->middleware('throttle:10,1');
+    ->when(config('adbana.limite_login') > 0, fn ($r) => $r->middleware('throttle:' . config('adbana.limite_login') . ',1'));
 
 Route::post('/auth/login', [AuthController::class, 'login'])
     ->middleware('throttle:login');
@@ -30,11 +34,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/usuarios/permisos', [UsuarioController::class, 'catalogo'])->middleware('permiso:equipo');
     Route::get('/usuarios', [UsuarioController::class, 'index'])->middleware('permiso:equipo');
+    Route::get('/usuarios/{id}', [UsuarioController::class, 'show'])->middleware('permiso:equipo');
     Route::post('/usuarios', [UsuarioController::class, 'store'])->middleware('permiso:equipo');
     Route::patch('/usuarios/{id}', [UsuarioController::class, 'update'])->middleware('permiso:equipo');
+    Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy'])->middleware('permiso:equipo');
     Route::post('/pedidos', [\App\Http\Controllers\VentaController::class, 'crear'])->middleware('permiso:pedidos');
     Route::post('/ventas', [\App\Http\Controllers\VentaController::class, 'crear'])->middleware('permiso:pedidos');
     Route::get('/categorias', [CategoriaController::class, 'index'])->middleware('permiso:pedidos,productos,stock');
+    Route::get('/categorias/{id}', [CategoriaController::class, 'show'])->middleware('permiso:pedidos,productos,stock');
     Route::get('/productos', [ProductoController::class, 'index'])->middleware('permiso:pedidos,productos,stock');
     Route::get('/productos/{id}', [ProductoController::class, 'show'])->middleware('permiso:pedidos,productos,stock');
     Route::get('/pedidos', [PedidoController::class, 'index'])->middleware('permiso:pedidos,caja,cancelar');
@@ -58,8 +65,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stock/movimientos', [StockController::class, 'movimientos'])->middleware('permiso:stock');
     Route::post('/stock/movimientos', [StockController::class, 'registrar'])->middleware('permiso:stock');
     Route::get('/gastos', [GastoController::class, 'index'])->middleware('permiso:gastos');
+    Route::get('/gastos/{id}', [GastoController::class, 'show'])->middleware('permiso:gastos');
     Route::post('/gastos', [GastoController::class, 'store'])->middleware('permiso:gastos');
+    Route::patch('/gastos/{id}', [GastoController::class, 'update'])->middleware('permiso:gastos');
+    Route::delete('/gastos/{id}', [GastoController::class, 'destroy'])->middleware('permiso:gastos');
     Route::get('/reportes/dashboard', \App\Http\Controllers\DashboardController::class)->middleware('permiso:reportes');
     Route::get('/reportes/resumen', [ReporteController::class, 'resumen'])->middleware('permiso:reportes');
     Route::get('/auditoria', [AuditoriaController::class, 'index'])->middleware('rol:dueno');
+    Route::get('/backups', [BackupController::class, 'index'])->middleware('rol:dueno');
+    Route::post('/backups', [BackupController::class, 'store'])->middleware('rol:dueno');
+    Route::get('/backups/{archivo}', [BackupController::class, 'descargar'])->middleware('rol:dueno');
 });

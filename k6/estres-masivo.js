@@ -1,0 +1,159 @@
+import http from 'k6/http';
+import { check } from 'k6';
+import { Counter } from 'k6/metrics';
+import exec from 'k6/execution';
+
+const BASE = __ENV.BASE_URL || 'http://host.docker.internal:8080/api';
+const TOTAL_PETICIONES = Number(__ENV.TOTAL_PETICIONES || 5000);
+const VUS = Number(__ENV.VUS || 50);
+// Por defecto registra el 100% de TOTAL_PETICIONES en la base de datos PostgreSQL (sin tope de 500)
+const REGISTRAR_EN_BD = __ENV.REGISTRAR_EN_BD !== undefined
+  ? Number(__ENV.REGISTRAR_EN_BD)
+  : (__ENV.ESCRITURAS_BD !== undefined ? Number(__ENV.ESCRITURAS_BD) : TOTAL_PETICIONES);
+const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json' };
+const PARAMS = { headers: HEADERS, timeout: '120s' };
+
+http.setResponseCallback(http.expectedStatuses(200, 201));
+
+const peticionesExitosas = new Counter('peticiones_exitosas');
+const pedidosRegistradosBd = new Counter('pedidos_registrados_bd');
+
+export const options = {
+  discardResponseBodies: true,
+  noConnectionReuse: false,
+  setupTimeout: '5m',
+  scenarios: {
+    estres_masivo: {
+      executor: 'shared-iterations',
+      vus: VUS,
+      iterations: TOTAL_PETICIONES,
+      maxDuration: '60m',
+    },
+  },
+  thresholds: {
+    http_req_failed: ['rate<0.01'],
+    http_req_duration: ['p(95)<15000'],
+    peticiones_exitosas: [`count>=${Math.floor(TOTAL_PETICIONES * 0.99)}`],
+    pedidos_registrados_bd: [`count>=${Math.floor(Math.min(REGISTRAR_EN_BD, TOTAL_PETICIONES) * 0.99)}`],
+  },
+};
+
+export function setup() {
+  const marca = Date.now();
+  const email = `masivo_${TOTAL_PETICIONES}_${marca}@adbana.local`;
+
+  const reg = http.post(
+    `${BASE}/auth/registro-dueno`,
+    JSON.stringify({
+      restaurante: `Benchmark ${TOTAL_PETICIONES} Reqs (${VUS} VUs)`,
+      name: `Auditor K6 (${TOTAL_PETICIONES} Reqs)`,
+      email,
+      password: 'ClaveSegura123',
+    }),
+    { headers: HEADERS, responseType: 'text', timeout: '120s' },
+  );
+
+  if (reg.status !== 201) {
+    throw new Error(`Fallo en setup registro-dueno: ${reg.status} ${reg.body}`);
+  }
+
+  const datosReg = reg.json();
+  const token = datosReg.token;
+  const slug = datosReg.restaurante.slug;
+  const auth = { ...HEADERS, Authorization: `Bearer ${token}` };
+
+  const cat = http.post(
+    `${BASE}/categorias`,
+    JSON.stringify({ nombre: `Especiales ${TOTAL_PETICIONES}`, orden: 1 }),
+    { headers: auth, responseType: 'text', timeout: '120s' },
+  );
+  const categoriaId = cat.status === 201 ? cat.json('id') : null;
+
+  // Stock suficiente para soportar millones de compras sin agotarse
+  const stockSuficiente = Math.max(TOTAL_PETICIONES * 2, 10000000);
+  const productosIds = [];
+
+  // Crear un catálogo de 50 platos para distribuir los locks de fila (SELECT ... FOR UPDATE) en PostgreSQL
+  const totalPlatos = 50;
+  const nombresBase = ['Hamburguesa', 'Pizza', 'Lomo Saltado', 'Ceviche', 'Arroz Chaufa', 'Pollo Brasa', 'Tallarín', 'Anticucho', 'Causa', 'Tacu Tacu'];
+  for (let i = 0; i < totalPlatos; i++) {
+    const nombrePlato = `${nombresBase[i % nombresBase.length]} Especial #${i + 1}`;
+    const prod = http.post(
+      `${BASE}/productos`,
+      JSON.stringify({
+        categoria_id: categoriaId,
+        nombre: `${nombrePlato} (${TOTAL_PETICIONES})`,
+        precio: 20.0 + (i % 15),
+        costo: 8.0 + (i % 8),
+        stock: stockSuficiente,
+      }),
+      { headers: auth, responseType: 'text', timeout: '120s' },
+    );
+
+    if (prod.status === 201) {
+      productosIds.push(prod.json('id'));
+    }
+  }
+
+  if (productosIds.length === 0) {
+    throw new Error('Fallo al crear productos en el setup.');
+  }
+
+  // Calentar caché Redis
+  http.get(`${BASE}/carta/${slug}`, PARAMS);
+
+  const totalBdObjetivo = Math.min(REGISTRAR_EN_BD, TOTAL_PETICIONES);
+  const pasoEscritura = totalBdObjetivo > 0 ? Math.max(1, Math.floor(TOTAL_PETICIONES / totalBdObjetivo)) : 1;
+
+  return {
+    slug,
+    token,
+    productosIds,
+    totalBdObjetivo,
+    pasoEscritura,
+  };
+}
+
+export default function (data) {
+  const iterGlobal = exec.scenario.iterationInTest;
+  const vuId = exec.vu.idInTest;
+
+  const esPedido = (data.totalBdObjetivo > 0) &&
+    (data.pasoEscritura === 1
+      ? iterGlobal < data.totalBdObjetivo
+      : (iterGlobal % data.pasoEscritura === 0 && Math.floor(iterGlobal / data.pasoEscritura) < data.totalBdObjetivo));
+
+  if (esPedido) {
+    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const n = Math.floor(Math.random() * 16);
+      return (c === 'x' ? n : (n & 3) | 8).toString(16);
+    });
+
+    // Distribuir entre los 50 productos combinando VU + iteración para eliminar contención de bloqueos en BD
+    const productoId = data.productosIds[(vuId + iterGlobal) % data.productosIds.length];
+
+    const resPedido = http.post(
+      `${BASE}/carta/${data.slug}/pedidos`,
+      JSON.stringify({
+        clave_operacion: uuid,
+        cliente_nombre: `Cliente Pedido #${iterGlobal + 1} (${TOTAL_PETICIONES})`,
+        tipo: 'recojo',
+        items: [{ producto_id: productoId, cantidad: 1 }],
+      }),
+      PARAMS,
+    );
+
+    if (resPedido.status === 201) {
+      pedidosRegistradosBd.add(1);
+      peticionesExitosas.add(1);
+    }
+    check(resPedido, { 'operacion BD 201': (r) => r.status === 201 });
+    return;
+  }
+
+  const res = http.get(`${BASE}/carta/${data.slug}`, PARAMS);
+  if (res.status === 200) {
+    peticionesExitosas.add(1);
+  }
+  check(res, { 'respuesta 200 OK': (r) => r.status === 200 });
+}

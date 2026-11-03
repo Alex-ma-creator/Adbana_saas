@@ -13,11 +13,17 @@ class ProductoController extends Controller
 {
     public function index(Request $request)
     {
+        $request->validate([
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = $request->integer('per_page', 20);
+
         $productos = Producto::with('categoria:id,nombre')
             ->when($request->filled('categoria_id'), fn ($q) => $q->where('categoria_id', $request->integer('categoria_id')))
             ->when($request->filled('q'), fn ($q) => $q->whereLike('nombre', '%' . $request->input('q') . '%'))
             ->orderBy('nombre')
-            ->paginate(20);
+            ->paginate($perPage);
 
         if (! $request->user()->tienePermiso('productos')) {
             $productos->getCollection()->each->makeHidden('costo');

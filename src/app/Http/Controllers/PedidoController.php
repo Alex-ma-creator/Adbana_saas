@@ -24,11 +24,14 @@ class PedidoController extends Controller
     public function index(Request $request)
     {
         $request->validate([
-            'estado' => ['sometimes', 'string'],
-            'tipo'   => ['sometimes', 'in:mesa,delivery,recojo'],
-            'desde'  => ['sometimes', 'date'],
-            'hasta'  => ['sometimes', 'date'],
+            'estado'   => ['sometimes', 'string'],
+            'tipo'     => ['sometimes', 'in:mesa,delivery,recojo'],
+            'desde'    => ['sometimes', 'date'],
+            'hasta'    => ['sometimes', 'date'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
+
+        $perPage = $request->integer('per_page', 20);
 
         $pedidos = Pedido::with('detalles')
             ->when($request->filled('estado'), fn ($q) => $q->whereIn('estado', explode(',', $request->input('estado'))))
@@ -36,7 +39,7 @@ class PedidoController extends Controller
             ->when($request->filled('desde'), fn ($q) => $q->where('created_at', '>=', \Carbon\CarbonImmutable::parse($request->input('desde'))->startOfDay()))
             ->when($request->filled('hasta'), fn ($q) => $q->where('created_at', '<', \Carbon\CarbonImmutable::parse($request->input('hasta'))->startOfDay()->addDay()))
             ->latest()
-            ->paginate(20);
+            ->paginate($perPage);
 
         if (! $request->user()->esDueno()) {
             $pedidos->getCollection()->each(

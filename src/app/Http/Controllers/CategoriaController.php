@@ -13,6 +13,11 @@ class CategoriaController extends Controller
         return Categoria::orderBy('orden')->orderBy('nombre')->get();
     }
 
+    public function show(string $id)
+    {
+        return Categoria::findOrFail($id);
+    }
+
     public function store(Request $request)
     {
         $datos = $request->validate([

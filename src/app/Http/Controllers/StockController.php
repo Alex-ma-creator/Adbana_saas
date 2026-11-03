@@ -33,7 +33,10 @@ class StockController extends Controller
             'tipo'        => ['sometimes', 'in:entrada,salida,ajuste'],
             'desde'       => ['sometimes', 'date'],
             'hasta'       => ['sometimes', 'date'],
+            'per_page'    => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
+
+        $perPage = $request->integer('per_page', 20);
 
         return MovimientoStock::with('producto:id,nombre')
             ->when($request->filled('producto_id'), fn ($q) => $q->where('producto_id', $request->integer('producto_id')))
@@ -41,7 +44,7 @@ class StockController extends Controller
             ->when($request->filled('desde'), fn ($q) => $q->whereDate('created_at', '>=', $request->input('desde')))
             ->when($request->filled('hasta'), fn ($q) => $q->whereDate('created_at', '<=', $request->input('hasta')))
             ->latest()
-            ->paginate(20);
+            ->paginate($perPage);
     }
 
     public function registrar(Request $request)

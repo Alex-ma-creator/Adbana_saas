@@ -96,6 +96,8 @@ const ADBANA_I18N_PANEL = {
         msg_gasto_reg: 'Gasto registrado. Si pagaste con caja, registra también la salida de efectivo.',
         msg_permisos_guardados: 'Permisos guardados. Se aplican a las nuevas operaciones; el menú de esa persona se actualizará automáticamente.',
         grp_operacion: 'Operación', grp_administracion: 'Administración',
+        btn_eliminar: 'Eliminar', btn_cancelar: 'Cancelar', gastos_lista: 'Historial de gastos', gastos_vacio: 'No hay gastos registrados.',
+        msg_gasto_act: 'Gasto actualizado.', msg_gasto_elim: 'Gasto eliminado.', msg_usuario_elim: 'Integrante eliminado.',
     },
     en: {
         cliente_defecto: 'Counter sale',
@@ -203,6 +205,8 @@ const ADBANA_I18N_PANEL = {
         perm_reportes_n: 'View business results', perm_reportes_d: 'Check restaurant sales, costs, and profits.',
         perm_gastos_n: 'Record and view expenses', perm_gastos_d: 'Record accounting expenses. Does not withdraw cash from a register.',
         perm_equipo_n: 'Manage team', perm_equipo_d: 'Manage staff and delegate own permissions. Only the owner can grant this access.',
+        btn_eliminar: 'Delete', btn_cancelar: 'Cancel', gastos_lista: 'Expense history', gastos_vacio: 'No expenses recorded.',
+        msg_gasto_act: 'Expense updated.', msg_gasto_elim: 'Expense deleted.', msg_usuario_elim: 'Member deleted.',
     },
     pt: {
         cliente_defecto: 'Venda no balcão',
@@ -310,6 +314,8 @@ const ADBANA_I18N_PANEL = {
         perm_reportes_n: 'Ver resultados do negócio', perm_reportes_d: 'Consultar vendas, custos e lucros do restaurante.',
         perm_gastos_n: 'Registrar e consultar despesas', perm_gastos_d: 'Registrar despesas contábeis. Não retira dinheiro de um caixa.',
         perm_equipo_n: 'Administrar a equipe', perm_equipo_d: 'Gerenciar funcionários e delegar suas próprias permissões. Somente o proprietário pode conceder este acesso.',
+        btn_eliminar: 'Excluir', btn_cancelar: 'Cancelar', gastos_lista: 'Histórico de despesas', gastos_vacio: 'Nenhuma despesa registrada.',
+        msg_gasto_act: 'Despesa atualizada.', msg_gasto_elim: 'Despesa excluída.', msg_usuario_elim: 'Integrante excluído.',
     },
     fr: {
         cliente_defecto: 'Vente au comptoir',
@@ -417,6 +423,8 @@ const ADBANA_I18N_PANEL = {
         perm_reportes_n: 'Voir les résultats de l’activité', perm_reportes_d: 'Consulter les ventes, coûts et bénéfices du restaurant.',
         perm_gastos_n: 'Enregistrer et consulter les dépenses', perm_gastos_d: 'Enregistrer les charges comptables. Ne retire pas d’espèces d’une caisse.',
         perm_equipo_n: 'Administrer l’équipe', perm_equipo_d: 'Gérer le personnel et déléguer ses propres autorisations. Seul le propriétaire peut accorder cet accès.',
+        btn_eliminar: 'Supprimer', btn_cancelar: 'Annuler', gastos_lista: 'Historique des dépenses', gastos_vacio: 'Aucune dépense enregistrée.',
+        msg_gasto_act: 'Dépense mise à jour.', msg_gasto_elim: 'Dépense supprimée.', msg_usuario_elim: 'Membre supprimé.',
     },
 };
 
@@ -441,7 +449,7 @@ document.addEventListener('alpine:init', () => {
             inicial: '0', contado: '', movimiento: { tipo: 'salida', monto: '', motivo: '' },
             producto: { nombre: '', precio: '', costo: '', stock: 0, stock_minimo: 0, categoria_id: '', activo: true },
             categoriaNombre: '', stockForm: { producto_id: '', tipo: 'entrada', cantidad: '', stock_real: '', motivo: '' },
-            gasto: { descripcion: '', monto: '', categoria: '' }, catalogoPermisos: null, editandoUsuario: null, permisosEditados: {}, usuarios: [], nuevoUsuario: { name: '', email: '', password: '', rol: 'cajero' }, timer: null, timerPermisos: null, refrescandoPermisos: false, pedidosEnCurso: null, sesionVersion: 0,
+            gasto: { id: null, descripcion: '', monto: '', categoria: '' }, gastosLista: [], paginaGastos: 1, ultimaGastos: 1, catalogoPermisos: null, editandoUsuario: null, permisosEditados: {}, usuarios: [], nuevoUsuario: { name: '', email: '', password: '', rol: 'cajero' }, timer: null, timerPermisos: null, refrescandoPermisos: false, pedidosEnCurso: null, sesionVersion: 0,
             t(clave) {
                 const dict = ADBANA_I18N_PANEL[this.idioma] || ADBANA_I18N_PANEL.es;
                 return dict[clave] !== undefined ? dict[clave] : (ADBANA_I18N_PANEL.es[clave] || clave);
@@ -555,7 +563,7 @@ document.addEventListener('alpine:init', () => {
                     this.user = data.user; this.tab = this.navegacion[0]?.id || 'perfil'; await this.actualizar();
                 });
             },
-            salirLocal() { this.perfil={name:'',email:'',current_password:'',password:'',password_confirmation:''}; this.editandoUsuario=null;this.catalogoPermisos=null;this.usuarios=[];this.permisosEditados={};this.dashboard=null; this.notificaciones=[]; this.perfilAbierto=false; this.avisosAbiertos=false; this.idiomaAbierto=false; this.cargaVersion++; this.cargando=false; this.cajaEnCurso=null; this.sesionVersion++; this.pedidos = []; this.productos = []; this.categorias = []; this.caja = null; this.resumen = null; this.pedidosEnCurso = null; this.token = ''; this.user = null; this.carrito = {}; this.cobro = null; this.comprobante = null; sessionStorage.removeItem('adbana:token'); },
+            salirLocal() { this.perfil={name:'',email:'',current_password:'',password:'',password_confirmation:''}; this.editandoUsuario=null;this.catalogoPermisos=null;this.usuarios=[];this.permisosEditados={};this.dashboard=null; this.notificaciones=[]; this.perfilAbierto=false; this.avisosAbiertos=false; this.idiomaAbierto=false; this.cargaVersion++; this.cargando=false; this.cajaEnCurso=null; this.sesionVersion++; this.pedidos = []; this.productos = []; this.categorias = []; this.gastosLista = []; this.paginaGastos = 1; this.ultimaGastos = 1; this.caja = null; this.resumen = null; this.pedidosEnCurso = null; this.token = ''; this.user = null; this.carrito = {}; this.cobro = null; this.comprobante = null; sessionStorage.removeItem('adbana:token'); },
             async logout() { await this.accion(async () => { await this.api('/auth/logout', 'POST'); this.salirLocal(); }); },
             async sincronizarPermisos() {
                 if(this.refrescandoPermisos || !this.user)return;
@@ -593,7 +601,17 @@ document.addEventListener('alpine:init', () => {
                 if(tab==='inicio'){const data=await this.api('/reportes/dashboard');if(vigente())this.dashboard=data;return;}
                 if(this.tab==='perfil')return;
                 if (this.tab === 'caja') { await this.cargarCaja(); return; }
-                if (tab === 'ventas') { if(!this.user.permisos.reportes)return; const data = await this.api('/reportes/resumen?desde=' + this.fecha + '&hasta=' + this.fecha); if(vigente())this.reporte=data; return; }
+                if (tab === 'ventas') {
+                    const [rep, gas] = await Promise.all([
+                        this.user.permisos.reportes ? this.api('/reportes/resumen?desde=' + this.fecha + '&hasta=' + this.fecha) : Promise.resolve(null),
+                        this.user.permisos.gastos ? this.api('/gastos?page=' + this.paginaGastos) : Promise.resolve(null),
+                    ]);
+                    if (vigente()) {
+                        if (rep) this.reporte = rep;
+                        if (gas) { this.gastosLista = gas.data || []; this.ultimaGastos = gas.last_page || 1; }
+                    }
+                    return;
+                }
                 if (tab === 'equipo') { const [data,catalogo] = await Promise.all([this.api('/usuarios'),this.api('/usuarios/permisos')]); if(vigente()){this.usuarios=data;this.catalogoPermisos=catalogo;if(this.editandoUsuario&&!data.some(u=>u.id===this.editandoUsuario.id))this.editandoUsuario=null;if(!this.rolesDisponibles.includes(this.nuevoUsuario.rol))this.nuevoUsuario.rol=this.rolesDisponibles[0]||'mozo';} return; }
                 const [productos, categorias] = await Promise.all([
                     this.api('/productos?q=' + encodeURIComponent(this.q) + '&page=' + this.pagina), this.api('/categorias'),
@@ -697,10 +715,31 @@ document.addEventListener('alpine:init', () => {
                 });
             },
             async verReporte() { await this.accion(async () => { this.reporte = await this.api('/reportes/resumen?desde=' + this.fecha + '&hasta=' + this.fecha); }); },
-            async guardarGasto() { await this.accion(async () => { await this.api('/gastos', 'POST', { ...this.gasto, fecha: this.fecha }); this.aviso = this.t('msg_gasto_reg'); }); },
+            editarGasto(g) { this.gasto = { id: g.id, descripcion: g.descripcion, monto: g.monto, categoria: g.categoria || '' }; },
+            cancelarEdicionGasto() { this.gasto = { id: null, descripcion: '', monto: '', categoria: '' }; },
+            async guardarGasto() {
+                await this.accion(async () => {
+                    const esEdicion = Boolean(this.gasto.id);
+                    const ruta = esEdicion ? '/gastos/' + this.gasto.id : '/gastos';
+                    const metodo = esEdicion ? 'PATCH' : 'POST';
+                    await this.api(ruta, metodo, { descripcion: this.gasto.descripcion, monto: this.gasto.monto, categoria: this.gasto.categoria || null, fecha: this.fecha });
+                    this.gasto = { id: null, descripcion: '', monto: '', categoria: '' };
+                    this.aviso = esEdicion ? this.t('msg_gasto_act') : this.t('msg_gasto_reg');
+                    await this.actualizar();
+                });
+            },
+            async eliminarGasto(g) {
+                await this.accion(async () => {
+                    await this.api('/gastos/' + g.id, 'DELETE');
+                    if (this.gasto.id === g.id) this.cancelarEdicionGasto();
+                    this.aviso = this.t('msg_gasto_elim');
+                    await this.actualizar();
+                });
+            },
             async verUsuarios() { await this.accion(async () => { this.usuarios = await this.api('/usuarios'); }); },
             async crearUsuario() { await this.accion(async () => { await this.api('/usuarios', 'POST', this.nuevoUsuario); this.nuevoUsuario = { name: '', email: '', password: '', rol: this.rolesDisponibles[0]||'mozo' }; this.usuarios = await this.api('/usuarios'); }); },
             async activarUsuario(u) { await this.accion(async () => { await this.api('/usuarios/' + u.id, 'PATCH', { activo: !u.activo }); this.usuarios = await this.api('/usuarios'); }); },
+            async eliminarUsuario(u) { await this.accion(async () => { await this.api('/usuarios/' + u.id, 'DELETE'); this.usuarios = await this.api('/usuarios'); this.aviso = this.t('msg_usuario_elim'); }); },
             nombreRol(rol) { return ({dueno:this.t('rol_dueno'),cajero:this.t('rol_cajero'),mozo:this.t('rol_mozo'),mozo_cajero:this.t('rol_mozo_cajero'),cocina:this.t('rol_cocina')})[rol]||rol; },
             get rolesDisponibles() {
                 return Object.keys(this.catalogoPermisos?.roles||{}).filter(rol=>rol!=='mozo_cajero' && (this.user?.rol==='dueno'||Object.entries(this.catalogoPermisos.roles[rol]).every(([k,v])=>!v||this.catalogoPermisos.delegables.includes(k))));
