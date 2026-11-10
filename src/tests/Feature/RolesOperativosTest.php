@@ -33,7 +33,7 @@ class RolesOperativosTest extends TestCase
         $this->postJson('/api/caja/abrir', ['saldo_inicial' => 0])->assertForbidden();
         $this->postJson("/api/ventas/$id/cobrar", ['medio_pago' => 'yape'])->assertForbidden();
         $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'confirmado'])->assertOk();
-        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'cancelado'])->assertForbidden();
+        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'cancelado', 'motivo' => 'Cancelación de prueba'])->assertForbidden();
         $this->getJson('/api/reportes/resumen')->assertForbidden();
     }
 
@@ -53,7 +53,7 @@ class RolesOperativosTest extends TestCase
         $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'preparando'])->assertOk()
             ->assertJsonMissingPath('total')->assertJsonMissingPath('cliente_nombre');
         $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'listo'])->assertOk();
-        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'cancelado'])->assertForbidden();
+        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'cancelado', 'motivo' => 'Cancelación de prueba'])->assertForbidden();
         $this->getJson('/api/pedidos')->assertForbidden();
         $this->getJson('/api/productos')->assertForbidden();
         $this->getJson('/api/caja/actual')->assertForbidden();

@@ -6,14 +6,15 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
-    <link rel="stylesheet" href="/demo-ar/acceso-carta.css">
-    <script src="/js/carta.js"></script>
+    <link rel="stylesheet" href="/css/carta-visual.css?v=1">
+    <script src="/js/carta.js?config=20261108&v=20261031b"></script>
     <script defer src="/js/alpine.min.js"></script>
-</head>
+<link rel="stylesheet" href="/css/carga.css?v=20261031d"></head>
 <body>
-<div x-data="carta(@js($slug))" x-init="cargar()" x-cloak @keydown.escape.window="abierto = false; idiomaAbierto = false">
+<div x-data="carta(@js($slug))" x-init="cargar()"  x-cloak @keydown.escape.window="abierto = false; idiomaAbierto = false">
+@include('layouts.carga', ['visible' => 'consultasBackend > 0 && (enviando || cargando)', 'bloqueante' => 'enviando'])
 
-    <p class="estado" x-show="cargando" x-text="t('cargando_carta')">Cargando carta…</p>
+
 
     <div class="estado" x-show="error && !cargando">
         <p x-text="error"></p>
@@ -46,11 +47,11 @@
             </div>
         </header>
 
-        <aside class="demo-carta" :aria-label="t('demo_aria')">
-            <div><span class="demo-carta-tag" x-text="t('demo_tag')">EXPERIENCIA INTERACTIVA · DEMO</span><h2 x-text="t('demo_h2')">Mira un plato antes de pedir.</h2><p x-text="t('demo_p')">Explora nuestra pizza de prueba en 3D o con la cámara en realidad aumentada.</p></div>
-            <a class="demo-carta-link" href="{{ '/demo-ar/?carta='.rawurlencode('/c/'.$slug) }}"><span x-text="t('demo_btn')">Probar 3D y realidad aumentada</span> <span aria-hidden="true">↗</span></a>
-            <small x-text="t('demo_nota')">Demostración visual. No añade productos al pedido.</small>
-        </aside>
+        <section class="carta-portada">
+            <span>LA CARTA</span>
+            <h2>¿Qué se te antoja hoy?</h2>
+            <p>Explora los platos y elige tu próximo favorito.</p>
+        </section>
 
         <nav class="chips" :aria-label="t('categorias_aria')">
             <template x-for="c in categorias" :key="c.id ?? 'otros'">
@@ -64,6 +65,7 @@
             <section :id="'cat-' + (c.id ?? 'otros')">
                 <h2 x-text="c.nombre"></h2>
 
+                <div class="carta-tarjetas">
                 <template x-for="p in c.productos" :key="p.id">
                     <article class="plato">
                         <div class="foto">
@@ -78,6 +80,15 @@
                             <span class="agotado" x-show="!p.disponible" x-text="t('agotado')">Agotado</span>
                         </div>
 
+                        <button type="button" class="btn" @click="$el.nextElementSibling.showModal()">Ver plato</button>
+                        <dialog class="carta-detalle" @click.self="$el.close()">
+                            <form method="dialog"><button class="btn" aria-label="Cerrar ficha">Cerrar</button></form>
+                            <template x-if="p.imagen"><img :src="p.imagen" :alt="p.nombre" loading="lazy"></template>
+                            <h2 x-text="p.nombre"></h2>
+                            <p x-text="p.descripcion"></p>
+                            <strong x-text="money(p.precio)"></strong>
+                        </dialog>
+
                         <div class="cantidad" x-show="p.disponible">
                             <button type="button" class="redondo" :aria-label="t('quitar_aria') + p.nombre"
                                     x-show="cantidad(p) > 0" @click="quitar(p)">−</button>
@@ -87,6 +98,7 @@
                         </div>
                     </article>
                 </template>
+                </div>
             </section>
         </template>
     </main>
@@ -123,9 +135,9 @@
 
             <label class="campo"><span x-text="t('como_lo_quieres')">¿Cómo lo quieres?</span>
                 <select x-model="form.tipo">
-                    <option value="recojo" x-text="t('opt_recojo')">Para recoger</option>
-                    <option value="delivery" x-text="t('opt_delivery')">Delivery</option>
-                    <option value="mesa" x-text="t('opt_mesa')">En mesa</option>
+                    <option x-show="!restaurante?.configuracion || restaurante.configuracion.modalidades.includes('recojo')" value="recojo" x-text="t('opt_recojo')">Para recoger</option>
+                    <option x-show="!restaurante?.configuracion || restaurante.configuracion.modalidades.includes('delivery')" value="delivery" x-text="t('opt_delivery')">Delivery</option>
+                    <option x-show="!restaurante?.configuracion || restaurante.configuracion.modalidades.includes('mesa')" value="mesa" x-text="t('opt_mesa')">En mesa</option>
                 </select>
             </label>
 

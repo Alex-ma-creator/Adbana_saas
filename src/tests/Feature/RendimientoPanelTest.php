@@ -3,12 +3,13 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\Concerns\PreparaDatos;
 use Tests\TestCase;
 
 class RendimientoPanelTest extends TestCase
 {
-    use RefreshDatabase, PreparaDatos;
+    use PreparaDatos, RefreshDatabase;
 
     public function test_tiempos_de_diagnostico_solo_se_publican_en_local(): void
     {
@@ -23,10 +24,9 @@ class RendimientoPanelTest extends TestCase
         $u = $this->crearUsuario($this->crearRestaurante());
         $this->actuarComo($u);
         $this->postJson('/api/caja/abrir', ['saldo_inicial' => '100.00'])->assertCreated();
-        foreach ([['entrada','10.50'],['salida','4.20'],['entrada','2.30']] as [$tipo,$monto]) {
-            $this->postJson('/api/caja/movimientos', ['tipo'=>$tipo,'monto'=>$monto,'motivo'=>'Prueba de resumen'])->assertCreated();
+        foreach ([['entrada', '10.50'], ['salida', '4.20'], ['entrada', '2.30']] as [$tipo, $monto]) {
+            $this->postJson('/api/caja/movimientos', ['clave_operacion' => (string) Str::uuid(), 'tipo' => $tipo, 'monto' => $monto, 'motivo' => 'Prueba de resumen'])->assertCreated();
         }
-        $this->getJson('/api/caja/actual')->assertOk()->assertJsonPath('resumen.entradas','12.80')
-            ->assertJsonPath('resumen.salidas','4.20')->assertJsonPath('resumen.efectivo_esperado','108.60');
+        $this->getJson('/api/caja/actual')->assertOk()->assertJsonPath('resumen.entradas', '12.80')->assertJsonPath('resumen.salidas', '4.20')->assertJsonPath('resumen.efectivo_esperado', '108.60');
     }
 }

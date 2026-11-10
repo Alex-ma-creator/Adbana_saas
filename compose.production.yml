@@ -1,0 +1,105 @@
+name: adbana-production
+x-app: &application
+  build:
+    context: .
+    dockerfile: Dockerfile.production
+    target: application
+  image: adbana-app:${APP_VERSION:-local}
+  env_file: .env.production
+  environment:
+    APP_ENV: production
+    APP_DEBUG: "false"
+    SESSION_SECURE_COOKIE: "true"
+    SESSION_HTTP_ONLY: "true"
+    SESSION_SAME_SITE: lax
+    APP_URL: https://${APP_DOMAIN:?Define APP_DOMAIN}
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_DATABASE: adbana
+    DB_USERNAME: adbana
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    REDIS_HOST: redis
+    TRUSTED_PROXIES: ${GATEWAY_IP:-172.30.10.2}
+  volumes:
+    - application_files:/var/www/storage
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+services:
+  app:
+    <<: *application
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1',9000) ? 0 : 1);"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  worker:
+    <<: *application
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90", "--max-time=3600"]
+  scheduler:
+    <<: *application
+    command: ["php", "artisan", "schedule:work"]
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      target: web
+    volumes:
+      - application_files:/var/www/storage:ro
+    restart: unless-stopped
+    depends_on: [app]
+  gateway:
+    image: caddy:2-alpine
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Define APP_DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on: [web]
+    networks:
+      default:
+        ipv4_address: ${GATEWAY_IP:-172.30.10.2}
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: adbana
+      POSTGRES_USER: adbana
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adbana -d adbana"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+volumes:
+  application_files:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${APP_NETWORK_SUBNET:-172.30.10.0/24}

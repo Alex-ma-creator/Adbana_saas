@@ -1,0 +1,20 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');let factory;
+const storage={getItem:()=>null,setItem(){},removeItem(){}};
+vm.runInNewContext(fs.readFileSync(__dirname+'/../../public/js/panel.js','utf8'),{document:{addEventListener:(_,f)=>f()},Alpine:{data:(_,f)=>factory=f},localStorage:storage,sessionStorage:storage,crypto:require('crypto').webcrypto,console});
+(async()=>{
+const app=factory();app.user={permisos:{pedidos:true,cocina:true,caja:true,cancelar:true}};
+assert(!app.navegacion.some(n=>n.id==='pedidos'));assert.equal(app.navegacion.filter(n=>n.id==='cocina').length,1);
+app.ir('pedidos');assert.equal(app.tab,'cocina');
+const calls=[];app.api=async path=>{calls.push(path);return path==='/caja/actual'?{caja:{id:1},resumen:{}}:{data:[],last_page:1,total:0}};
+await app.actualizar();assert(calls.includes('/pedidos?abiertos=1&page=1'));assert(calls.includes('/caja/actual'));assert(!calls.some(p=>p.includes('q=')));
+const plato={estado:'pendiente',detalles:[{requiere_cocina:true}]};assert.equal(app.siguiente(plato),'preparando');assert.equal(app.etiquetaSiguiente(plato),'Tomar pedido');
+assert.equal(app.siguiente({...plato,estado:'preparando'}),'listo');assert.equal(app.siguiente({...plato,estado:'listo'}),'entregado');
+assert.equal(app.siguiente({estado:'pendiente',detalles:[{requiere_cocina:false}]}),'confirmado');
+app.user={permisos:{cocina:true}};calls.length=0;await app.actualizar();assert.deepEqual(calls,['/cocina?page=1']);
+assert.equal(app.siguiente({estado:'pendiente',detalles:[{nombre_producto:'Plato'}]}),'preparando');assert.equal(app.siguiente({...plato,estado:'listo'}),null);
+app.user={permisos:{pedidos:true}};assert.equal(app.siguiente(plato),null);assert.equal(app.siguiente({...plato,estado:'listo'}),'entregado');
+app.verHistorialPedidos=true;calls.length=0;await app.cargarPedidos();assert.deepEqual(calls,['/pedidos?page=1']);
+app.api=async()=>{throw Error('No se pudieron cargar los pedidos')};await app.accion(()=>app.cargarPedidos());assert.match(app.error,/No se pudieron cargar/);
+const blade=fs.readFileSync(__dirname+'/../../resources/views/panel.blade.php','utf8');assert(blade.includes('!error && !cargando && !busy && !pedidosVisibles.length'));
+console.log('OK: cocina unificada, FIFO API, permisos de acciones, consulta sin filtro vacío, historial, caja y error visible.');
+})().catch(e=>{console.error(e);process.exitCode=1});

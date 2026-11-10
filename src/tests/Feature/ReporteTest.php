@@ -73,7 +73,7 @@ class ReporteTest extends TestCase
         $entregado = $this->pedir(3);
 
         $this->actuarComo($this->dueno);
-        $this->patchJson("/api/pedidos/{$cancelado}/estado", ['estado' => 'cancelado'])->assertOk();
+        $this->patchJson("/api/pedidos/{$cancelado}/estado", ['estado' => 'cancelado', 'motivo' => 'Cancelación de prueba'])->assertOk();
         $this->llevarPedidoAEntregado($entregado, $this->dueno);
 
         $this->getJson('/api/reportes/resumen')

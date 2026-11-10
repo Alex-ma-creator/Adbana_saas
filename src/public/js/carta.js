@@ -246,6 +246,7 @@ document.addEventListener('alpine:init', () => {
                 { codigo: 'fr', corto: 'FR', nombre: 'Français' },
             ],
             cargando: true,
+            consultasBackend: 0,
             error: '',
             restaurante: null,
             categorias: [],
@@ -286,6 +287,15 @@ document.addEventListener('alpine:init', () => {
                 }
             },
 
+            async consultarBackend(url, opciones) {
+                this.consultasBackend++;
+                try {
+                    const r = await fetch(url, {...opciones, signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(20000):undefined});
+                    const datos = await r.json().catch(error=>{if(error.name==='AbortError'||error.name==='TimeoutError'||(r.ok&&r.status!==204))throw error;return {};});
+                    return { r, datos };
+                } finally { this.consultasBackend--; }
+            },
+
             async cargar(silencioso = false) {
                 if (!silencioso) {
                     this.cargando = true;
@@ -297,7 +307,7 @@ document.addEventListener('alpine:init', () => {
                 }
 
                 try {
-                    const r = await fetch('/api/carta/' + encodeURIComponent(this.slug), {
+                    const { r, datos } = await this.consultarBackend('/api/carta/' + encodeURIComponent(this.slug) + (new URLSearchParams(window.location.search).get('mesa')?'?mesa='+encodeURIComponent(new URLSearchParams(window.location.search).get('mesa')):''), {
                         headers: { Accept: 'application/json', 'Accept-Language': this.idioma },
                     });
 
@@ -310,9 +320,11 @@ document.addEventListener('alpine:init', () => {
                         throw new Error('http ' + r.status);
                     }
 
-                    const datos = await r.json();
                     this.restaurante = datos.restaurante;
+                    const modos=datos.restaurante.configuracion?.modalidades || ['mesa','recojo','delivery'];
+                    if(!modos.includes(this.form.tipo))this.form.tipo=modos[0];
                     this.categorias = datos.carta;
+                    if(datos.mesa && modos.includes('mesa')){this.form.tipo='mesa';this.form.mesa=datos.mesa.nombre;}
                     document.title = datos.restaurante.nombre + ' | ' + this.t('titulo_carta');
                     this.restaurarCarrito();
                     const pendiente = sessionStorage.getItem('pedido-pendiente:' + this.slug);
@@ -419,6 +431,7 @@ document.addEventListener('alpine:init', () => {
                 return faltan;
             },
 
+            identidadCliente() { let id=localStorage.getItem('adbana:cliente');if(!id){id=crypto.randomUUID();localStorage.setItem('adbana:cliente',id);}return id; },
             async enviar() {
                 if (this.enviando) return;
                 const tienePendiente = sessionStorage.getItem('pedido-pendiente:' + this.slug);
@@ -441,13 +454,11 @@ document.addEventListener('alpine:init', () => {
                         };
                         sessionStorage.setItem(almacenamiento, JSON.stringify(pendiente));
                     }
-                    const r = await fetch('/api/carta/' + encodeURIComponent(this.slug) + '/pedidos', {
+                    const { r, datos } = await this.consultarBackend('/api/carta/' + encodeURIComponent(this.slug) + '/pedidos', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Language': this.idioma },
+                        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Language': this.idioma, 'X-Adbana-Cliente': this.identidadCliente() },
                         body: JSON.stringify(pendiente),
                     });
-
-                    const datos = await r.json().catch(() => ({}));
 
                     if (r.status === 201) {
                         sessionStorage.removeItem(almacenamiento);

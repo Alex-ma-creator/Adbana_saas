@@ -79,7 +79,7 @@ class ConsistenciaOperativaTest extends TestCase
         }
         $this->postJson("/api/ventas/$id/cobrar", ['medio_pago' => 'yape'])->assertOk()->assertJsonPath('estado', 'preparando');
         $this->getJson('/api/cocina')->assertJsonPath('data.0.id', $id);
-        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'cancelado'])->assertUnprocessable();
+        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'cancelado', 'motivo' => 'Cancelación de prueba'])->assertUnprocessable();
         $this->postJson('/api/caja/cerrar', ['efectivo_contado' => 0])->assertOk();
         $this->postJson("/api/ventas/$id/cobrar", ['medio_pago' => 'yape'])->assertOk();
         $this->assertDatabaseHas('productos', ['id' => $p->id, 'stock' => 29]);
