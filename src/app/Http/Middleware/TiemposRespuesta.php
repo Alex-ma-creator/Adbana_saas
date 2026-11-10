@@ -6,12 +6,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Diagnóstico local bajo demanda: evita sobrecargar ráfagas masivas de k6. */
+/** Diagnóstico local: no expone SQL ni parámetros y no se activa en producción. */
 class TiemposRespuesta
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! app()->environment('local') || ! $request->hasHeader('X-Debug-Timing')) {
+        if (! app()->environment('local')) {
             return $next($request);
         }
         $request->attributes->set('_timing_enabled', true);
