@@ -11,6 +11,7 @@ RUN composer dump-autoload --no-dev --optimize --no-scripts \
  && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
  && chown -R www-data:www-data storage bootstrap/cache
 COPY deploy/php-production.ini /usr/local/etc/php/conf.d/production.ini
+COPY deploy/php-fpm-production.conf /usr/local/etc/php-fpm.d/zz-adbana.conf
 COPY deploy/entrypoint.sh /usr/local/bin/adbana-entrypoint
 RUN chmod +x /usr/local/bin/adbana-entrypoint
 ENTRYPOINT ["adbana-entrypoint"]

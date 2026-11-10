@@ -47,6 +47,8 @@ export const options = {
     checks: ['rate>0.99'],
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<1500'],
+    ...(REGISTRAR_EN_BD > 0 ? { 'http_req_duration{flujo:pedido}': ['p(95)<1500'] } : {}),
+    ...(REGISTRAR_EN_BD < TOTAL_PETICIONES ? { 'http_req_duration{flujo:carta}': ['p(95)<1500'] } : {}),
     peticiones_exitosas: [`count>=${Math.floor(TOTAL_PETICIONES * 0.99)}`],
     pedidos_registrados_bd: [`count>=${Math.floor(Math.min(REGISTRAR_EN_BD, TOTAL_PETICIONES) * 0.99)}`],
   },
@@ -167,7 +169,7 @@ export default function (data) {
     return;
   }
 
-  const res = http.get(`${BASE}/carta/${data.slug}`, PARAMS);
+  const res = http.get(`${BASE}/carta/${data.slug}`, { ...PARAMS, tags: { flujo: 'carta' } });
   limitadas.add(Number(res.status === 429));
   if (res.status === 200) {
     peticionesExitosas.add(1);

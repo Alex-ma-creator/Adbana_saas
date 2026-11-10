@@ -11,7 +11,7 @@
                     <label>Descripción<textarea x-model="platoCarta.descripcion" maxlength="1000"></textarea></label>
                     <label>Precio (S/)<input type="number" x-model="platoCarta.precio" min="0" max="99999999.99" step="0.01" required></label>
                     <img x-show="platoCarta.imagen" :src="platoCarta.imagen || null" alt="Foto actual del plato" width="96">
-                    <label>Foto del plato<input type="file" accept="image/jpeg,image/png,image/webp" @change="platoCarta.foto = $event.target.files[0] || null"></label>
+                    <label>Foto del plato<input type="file" :required="!platoCarta.id" accept="image/jpeg,image/png,image/webp" @change="platoCarta.foto = $event.target.files[0] || null"></label>
                     <small>JPG, PNG o WebP · hasta 4 MB</small>
                     <label>Categoría<select x-model="platoCarta.categoria_id">
                         <option value="">Sin categoría</option>
