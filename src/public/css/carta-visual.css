@@ -9,3 +9,6 @@
 .carta-detalle { width: min(560px, calc(100% - 32px)); max-height: 85vh; border: 0; border-radius: 18px; padding: 20px; }
 .carta-detalle::backdrop { background: rgb(0 0 0 / 60%); }
 .carta-detalle img { width: 100%; max-height: 45vh; object-fit: contain; margin-top: 12px; }
+.carta-detalle model-viewer { display:block; width:100%; height:300px; background:#faf6f0; }
+.carta-detalle .carta-ar { background:#b91c1c; color:white; margin:8px 0; }
+.carta-detalle model-viewer .carta-ar { position:absolute; bottom:8px; left:12px; }

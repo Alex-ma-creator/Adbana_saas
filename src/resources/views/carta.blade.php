@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/css/carta-visual.css?v=1">
     <script src="/js/carta.js?config=20261108&v=20261031b"></script>
     <script defer src="/js/alpine.min.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 <link rel="stylesheet" href="/css/carga.css?v=20261031d"></head>
 <body>
 <div x-data="carta(@js($slug))" x-init="cargar()"  x-cloak @keydown.escape.window="abierto = false; idiomaAbierto = false">
@@ -81,11 +82,34 @@
                         </div>
 
                         <button type="button" class="btn" @click="$el.nextElementSibling.showModal()">Ver plato</button>
-                        <dialog class="carta-detalle" @click.self="$el.close()">
+                        <dialog class="carta-detalle" x-data="{ visor: false }" @close="visor=false" @click.self="$el.close()">
                             <form method="dialog"><button class="btn" aria-label="Cerrar ficha">Cerrar</button></form>
                             <template x-if="p.imagen"><img :src="p.imagen" :alt="p.nombre" loading="lazy"></template>
                             <h2 x-text="p.nombre"></h2>
                             <p x-text="p.descripcion"></p>
+                            <button type="button" class="btn carta-ar" x-show="p.modelo_3d && !visor" @click="visor=true">
+                                <span aria-hidden="true">●</span> Abrir modelo 3D
+                            </button>
+                            <template x-if="visor && p.modelo_3d">
+                                <div x-data="{ mensajeAR: '' }">
+                                    <model-viewer :src="p.modelo_3d" :alt="p.nombre" camera-controls touch-action="pan-y" ar ar-modes="webxr scene-viewer quick-look"
+                                        @ar-status="if ($event.detail.status === 'failed') mensajeAR = 'No se pudo abrir la cámara. Revisa los permisos de Chrome y los servicios de realidad aumentada de Android.'">
+                                        <button type="button" slot="ar-button" hidden tabindex="-1" aria-hidden="true"></button>
+                                    </model-viewer>
+                                    <button type="button" class="btn carta-ar" @click="
+                                        const modelo = $el.previousElementSibling;
+                                        if (!window.isSecureContext) {
+                                            mensajeAR = 'Abre esta carta con HTTPS en el celular para usar la cámara.';
+                                        } else if (!modelo.canActivateAR) {
+                                            mensajeAR = 'La cámara AR no está disponible. Abre la carta en Chrome para Android y comprueba que tu equipo sea compatible y tenga Google Play Services para RA actualizado.';
+                                        } else {
+                                            mensajeAR = '';
+                                            modelo.activateAR().catch(() => mensajeAR = 'No se pudo iniciar la cámara de realidad aumentada.');
+                                        }
+                                    "><span aria-hidden="true">●</span> Activar cámara · Ver en tu mesa</button>
+                                    <p role="status" x-show="mensajeAR" x-text="mensajeAR"></p>
+                                </div>
+                            </template>
                             <strong x-text="money(p.precio)"></strong>
                         </dialog>
 
