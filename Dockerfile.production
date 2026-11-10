@@ -1,0 +1,21 @@
+FROM php:8.4-fpm-alpine AS application
+RUN apk add --no-cache postgresql-dev icu-dev oniguruma-dev libzip-dev $PHPIZE_DEPS linux-headers \
+ && docker-php-ext-install pdo_pgsql opcache intl mbstring bcmath pcntl zip \
+ && pecl install redis && docker-php-ext-enable redis && apk del $PHPIZE_DEPS
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+WORKDIR /var/www
+COPY src/composer.json src/composer.lock ./
+RUN composer install --no-dev --prefer-dist --no-interaction --no-scripts --no-autoloader
+COPY src/ ./
+RUN composer dump-autoload --no-dev --optimize --no-scripts \
+ && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+ && chown -R www-data:www-data storage bootstrap/cache
+COPY deploy/php-production.ini /usr/local/etc/php/conf.d/production.ini
+COPY deploy/entrypoint.sh /usr/local/bin/adbana-entrypoint
+RUN chmod +x /usr/local/bin/adbana-entrypoint
+ENTRYPOINT ["adbana-entrypoint"]
+CMD ["php-fpm"]
+
+FROM nginx:alpine AS web
+COPY --from=application /var/www/public /var/www/public
+COPY nginx.conf /etc/nginx/conf.d/default.conf

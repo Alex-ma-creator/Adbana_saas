@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Support\Permisos;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -10,7 +11,9 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, Auditable;
+    use Auditable, HasApiTokens, HasFactory, Notifiable;
+
+    protected $attributes = ['activo' => true];
 
     protected array $auditoriaExcluir = ['password', 'remember_token', 'email_verified_at'];
 
@@ -45,10 +48,14 @@ class User extends Authenticatable
 
     public function getPermisosAttribute(): array
     {
-        $permisos = \App\Support\Permisos::resolver($this->rol, $this->permisos_personalizados ?? []);
-        if (! $this->activo || ! $this->restaurante?->activo) $permisos = array_fill_keys(array_keys($permisos), false);
+        $permisos = Permisos::resolver($this->rol, $this->permisos_personalizados ?? []);
+        if (! $this->activo || ! $this->restaurante?->activo) {
+            $permisos = array_fill_keys(array_keys($permisos), false);
+        }
+
         return $permisos + ['administracion' => $this->activo && $this->restaurante?->activo && $this->esDueno()];
     }
+
     public function tienePermiso(string $permiso): bool
     {
         return $this->permisos[$permiso] ?? false;

@@ -3,19 +3,29 @@ import { check } from 'k6';
 import { Counter } from 'k6/metrics';
 import exec from 'k6/execution';
 
-const BASE = __ENV.BASE_URL || 'http://host.docker.internal:8080/api';
+const BASE = (__ENV.BASE_URL || 'http://host.docker.internal:8080/api').replace(/\/$/, '');
+
 const TOTAL_PETICIONES = Number(__ENV.TOTAL_PETICIONES || 5000);
 const VUS = Number(__ENV.VUS || 50);
 // Por defecto registra el 100% de TOTAL_PETICIONES en la base de datos PostgreSQL (sin tope de 500)
 const REGISTRAR_EN_BD = __ENV.REGISTRAR_EN_BD !== undefined
   ? Number(__ENV.REGISTRAR_EN_BD)
   : (__ENV.ESCRITURAS_BD !== undefined ? Number(__ENV.ESCRITURAS_BD) : TOTAL_PETICIONES);
+
+if (!Number.isSafeInteger(TOTAL_PETICIONES) || TOTAL_PETICIONES < 1 ||
+    !Number.isSafeInteger(VUS) || VUS < 1 ||
+    !Number.isSafeInteger(REGISTRAR_EN_BD) || REGISTRAR_EN_BD < 0 ||
+    REGISTRAR_EN_BD > TOTAL_PETICIONES) {
+  throw new Error('Indica cantidades enteras válidas para operaciones, usuarios y escrituras.');
+}
+
 const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json' };
 const PARAMS = { headers: HEADERS, timeout: '120s' };
 
 http.setResponseCallback(http.expectedStatuses(200, 201));
 
 const peticionesExitosas = new Counter('peticiones_exitosas');
+const limitadas = new Counter('peticiones_limitadas');
 const pedidosRegistradosBd = new Counter('pedidos_registrados_bd');
 
 export const options = {
@@ -31,6 +41,7 @@ export const options = {
     },
   },
   thresholds: {
+    peticiones_limitadas: ['count==0'],
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<15000'],
     peticiones_exitosas: [`count>=${Math.floor(TOTAL_PETICIONES * 0.99)}`],
@@ -103,14 +114,12 @@ export function setup() {
   http.get(`${BASE}/carta/${slug}`, PARAMS);
 
   const totalBdObjetivo = Math.min(REGISTRAR_EN_BD, TOTAL_PETICIONES);
-  const pasoEscritura = totalBdObjetivo > 0 ? Math.max(1, Math.floor(TOTAL_PETICIONES / totalBdObjetivo)) : 1;
 
   return {
     slug,
     token,
     productosIds,
     totalBdObjetivo,
-    pasoEscritura,
   };
 }
 
@@ -119,9 +128,8 @@ export default function (data) {
   const vuId = exec.vu.idInTest;
 
   const esPedido = (data.totalBdObjetivo > 0) &&
-    (data.pasoEscritura === 1
-      ? iterGlobal < data.totalBdObjetivo
-      : (iterGlobal % data.pasoEscritura === 0 && Math.floor(iterGlobal / data.pasoEscritura) < data.totalBdObjetivo));
+    (Math.floor((iterGlobal + 1) * data.totalBdObjetivo / TOTAL_PETICIONES)
+      > Math.floor(iterGlobal * data.totalBdObjetivo / TOTAL_PETICIONES));
 
   if (esPedido) {
     const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -140,9 +148,17 @@ export default function (data) {
         tipo: 'recojo',
         items: [{ producto_id: productoId, cantidad: 1 }],
       }),
-      PARAMS,
+      {
+        ...PARAMS,
+        headers: {
+          ...HEADERS,
+          'X-Adbana-Cliente': `00000000-0000-4000-8000-${String(vuId).padStart(12, '0')}`,
+        },
+        tags: { flujo: 'pedido' }
+      },
     );
 
+    limitadas.add(Number(resPedido.status === 429));
     if (resPedido.status === 201) {
       pedidosRegistradosBd.add(1);
       peticionesExitosas.add(1);
@@ -152,6 +168,7 @@ export default function (data) {
   }
 
   const res = http.get(`${BASE}/carta/${data.slug}`, PARAMS);
+  limitadas.add(Number(res.status === 429));
   if (res.status === 200) {
     peticionesExitosas.add(1);
   }

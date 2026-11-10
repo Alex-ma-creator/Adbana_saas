@@ -10,29 +10,36 @@ use Tests\TestCase;
 
 class AuthTest extends TestCase
 {
-    use RefreshDatabase, PreparaDatos;
+    use PreparaDatos, RefreshDatabase;
 
     private function datosRegistro(array $extra = []): array
     {
         return array_merge([
             'restaurante' => 'Picanteria Prueba',
-            'name'        => 'Dueno Prueba',
-            'email'       => 'dueno@prueba.com',
-            'password'    => 'clave12345',
+            'name' => 'Dueno Prueba',
+            'email' => 'dueno@prueba.com',
+            'password' => 'clave12345',
         ], $extra);
     }
 
     public function test_el_registro_crea_restaurante_dueno_y_token(): void
     {
-        $this->postJson('/api/auth/registro-dueno', $this->datosRegistro())
+        $respuesta = $this->postJson('/api/auth/registro-dueno', $this->datosRegistro())
             ->assertCreated()
             ->assertJsonStructure([
                 'token',
-                'user'        => ['id', 'email', 'rol', 'restaurante_id'],
+                'user' => ['id', 'email', 'rol', 'restaurante_id'],
                 'restaurante' => ['id', 'nombre', 'slug'],
             ])
             ->assertJsonPath('user.rol', 'dueno')
-            ->assertJsonPath('restaurante.slug', 'picanteria-prueba');
+            ->assertJsonPath('restaurante.slug', 'picanteria-prueba')
+            ->assertJsonPath('user.activo', true)
+            ->assertJsonPath('restaurante.activo', true)
+            ->assertJsonPath('user.permisos.reportes', true)
+            ->assertJsonPath('user.permisos.pedidos', true)
+            ->assertJsonPath('user.permisos.equipo', true);
+        $actual = $this->withToken($respuesta->json('token'))->getJson('/api/auth/me')->assertOk();
+        $this->assertSame($respuesta->json('user.permisos'), $actual->json('permisos'));
 
         $this->assertDatabaseHas('users', ['email' => 'dueno@prueba.com', 'rol' => 'dueno']);
         $this->assertDatabaseCount('restaurantes', 1);
@@ -78,7 +85,7 @@ class AuthTest extends TestCase
     public function test_no_se_puede_registrar_un_rol_privilegiado_desde_afuera(): void
     {
         $this->postJson('/api/auth/registro-dueno', $this->datosRegistro([
-            'rol'            => 'superadmin',
+            'rol' => 'superadmin',
             'restaurante_id' => 999,
         ]))->assertCreated();
 

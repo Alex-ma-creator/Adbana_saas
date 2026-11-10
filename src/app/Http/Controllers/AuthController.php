@@ -27,7 +27,6 @@ class AuthController extends Controller
                 'slug'     => $this->slugUnico($datos['restaurante']),
                 'telefono' => $datos['telefono'] ?? null,
             ]);
-
             $user = User::create([
                 'restaurante_id' => $restaurante->id,
                 'name'           => $datos['name'],
@@ -43,7 +42,7 @@ class AuthController extends Controller
         $expira = $minutosExpiracion > 0 ? now()->addMinutes($minutosExpiracion) : null;
 
         return response()->json([
-            'token'       => $user->createToken('api', ['*'], $expira)->plainTextToken,
+            'token'       => $user->createToken('panel', ['*'], $expira)->plainTextToken,
             'expires_at'  => $expira?->toIso8601String(),
             'user'        => $user->load('restaurante')->append('permisos'),
             'restaurante' => $restaurante,
@@ -58,11 +57,9 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('email', $datos['email'])->first();
-
         if (! $user || ! Hash::check($datos['password'], $user->password)) {
             return response()->json(['message' => 'Credenciales incorrectas.'], 401);
         }
-
         if (! $user->activo || ($user->restaurante && ! $user->restaurante->activo)) {
             return response()->json(['message' => 'Cuenta desactivada.'], 403);
         }
@@ -70,8 +67,19 @@ class AuthController extends Controller
         $minutosExpiracion = (int) config('sanctum.expiration', 480);
         $expira = $minutosExpiracion > 0 ? now()->addMinutes($minutosExpiracion) : null;
 
+        $token = DB::transaction(function () use ($user, $datos, $expira) {
+            $actual = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actual->activo && $actual->restaurante?->activo, 403);
+            abort_unless(Hash::check($datos['password'], $actual->password), 401);
+            // Conserva nueve sesiones previas antes de emitir la nueva.
+            $conservar = $actual->tokens()->latest('id')->limit(9)->pluck('id');
+            $actual->tokens()->whereNotIn('id', $conservar)->delete();
+
+            return $actual->createToken('panel', ['*'], $expira)->plainTextToken;
+        });
+
         return response()->json([
-            'token'      => $user->createToken('api', ['*'], $expira)->plainTextToken,
+            'token'      => $token,
             'expires_at' => $expira?->toIso8601String(),
             'user'       => $user->load('restaurante')->append('permisos'),
         ]);
@@ -94,9 +102,8 @@ class AuthController extends Controller
         $base = Str::slug($nombre) ?: 'restaurante';
         $slug = $base;
         $i = 2;
-
-        while (Restaurante::where('slug', $slug)->exists()) {
-            $slug = $base . '-' . $i++;
+        while (Restaurante::withTrashed()->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$i++;
         }
 
         return $slug;

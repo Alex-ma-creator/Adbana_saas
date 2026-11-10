@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Middleware\PermisoMiddleware;
 use App\Http\Middleware\RolMiddleware;
+use App\Http\Middleware\TiemposRespuesta;
+use App\Http\Middleware\VerificarCorsEstricto;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
@@ -19,15 +22,20 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prepend(\App\Http\Middleware\VerificarCorsEstricto::class);
-        $middleware->append(\App\Http\Middleware\TiemposRespuesta::class);
-
-        // La API no tiene una ruta de login HTML para redirigir invitados.
+        $middleware->prepend(VerificarCorsEstricto::class);
+        $middleware->append(TiemposRespuesta::class);
         $middleware->redirectGuestsTo(null);
+
+        if ($proxies = env('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(
+                at: array_values(array_filter(array_map('trim', explode(',', $proxies)))),
+                headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO
+            );
+        }
 
         $middleware->alias([
             'rol' => RolMiddleware::class,
-            'permiso' => \App\Http\Middleware\PermisoMiddleware::class,
+            'permiso' => PermisoMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

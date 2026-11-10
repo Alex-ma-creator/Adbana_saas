@@ -133,8 +133,8 @@ class PedidosTest extends TestCase
 
         $this->actuarComo($this->dueno);
 
-        $this->patchJson("/api/pedidos/{$pedidoId}/estado", ['estado' => 'cancelado'])->assertOk();
-        $this->patchJson("/api/pedidos/{$pedidoId}/estado", ['estado' => 'cancelado'])->assertUnprocessable();
+        $this->patchJson("/api/pedidos/{$pedidoId}/estado", ['estado' => 'cancelado', 'motivo' => 'Cancelación de prueba'])->assertOk();
+        $this->patchJson("/api/pedidos/{$pedidoId}/estado", ['estado' => 'cancelado', 'motivo' => 'Cancelación de prueba'])->assertUnprocessable();
 
         $this->assertDatabaseHas('productos', ['id' => $producto->id, 'stock' => 10]);
         $this->assertSame(1, DB::table('movimientos_stock')->where('tipo', 'entrada')->count());
