@@ -24,7 +24,7 @@ const ADBANA_I18N_PANEL = {
 
         lbl_restaurante: 'Nombre del restaurante', lbl_tu_nombre: 'Tu nombre', lbl_correo: 'Correo', lbl_password: 'Contraseña',
 
-        btn_crear_rest: 'Crear restaurante', btn_ingresar: 'Ingresar', btn_ya_tengo: 'Ya tengo cuenta', btn_crear_mi_rest: 'Crear mi restaurante',
+        btn_crear_rest: 'Crear restaurante', btn_ingresar: 'Ingresar', btn_ya_tengo: 'Ya tengo cuenta', btn_crear_mi_rest: 'Crear mi restaurante', btn_google: 'Continuar con Google', o_separador: 'o',
 
         mi_restaurante: 'Mi restaurante', menu_principal: 'Menú principal', cerrar_menu: 'Cerrar menú', secciones: 'Secciones',
 
@@ -221,7 +221,7 @@ const ADBANA_I18N_PANEL = {
 
         lbl_restaurante: 'Restaurant name', lbl_tu_nombre: 'Your name', lbl_correo: 'Email', lbl_password: 'Password',
 
-        btn_crear_rest: 'Create restaurant', btn_ingresar: 'Sign in', btn_ya_tengo: 'I already have an account', btn_crear_mi_rest: 'Create my restaurant',
+        btn_crear_rest: 'Create restaurant', btn_ingresar: 'Sign in', btn_ya_tengo: 'I already have an account', btn_crear_mi_rest: 'Create my restaurant', btn_google: 'Continue with Google', o_separador: 'or',
 
         mi_restaurante: 'My restaurant', menu_principal: 'Main menu', cerrar_menu: 'Close menu', secciones: 'Sections',
 
@@ -436,7 +436,7 @@ const ADBANA_I18N_PANEL = {
 
         lbl_restaurante: 'Nome do restaurante', lbl_tu_nombre: 'Seu nome', lbl_correo: 'E-mail', lbl_password: 'Senha',
 
-        btn_crear_rest: 'Criar restaurante', btn_ingresar: 'Entrar', btn_ya_tengo: 'Já tenho uma conta', btn_crear_mi_rest: 'Criar meu restaurante',
+        btn_crear_rest: 'Criar restaurante', btn_ingresar: 'Entrar', btn_ya_tengo: 'Já tenho uma conta', btn_crear_mi_rest: 'Criar meu restaurante', btn_google: 'Continuar com o Google', o_separador: 'ou',
 
         mi_restaurante: 'Meu restaurante', menu_principal: 'Menu principal', cerrar_menu: 'Fechar menu', secciones: 'Seções',
 
@@ -651,7 +651,7 @@ const ADBANA_I18N_PANEL = {
 
         lbl_restaurante: 'Nom du restaurant', lbl_tu_nombre: 'Votre nom', lbl_correo: 'Adresse e-mail', lbl_password: 'Mot de passe',
 
-        btn_crear_rest: 'Créer le restaurant', btn_ingresar: 'Se connecter', btn_ya_tengo: 'J’ai déjà un compte', btn_crear_mi_rest: 'Créer mon restaurant',
+        btn_crear_rest: 'Créer le restaurant', btn_ingresar: 'Se connecter', btn_ya_tengo: 'J’ai déjà un compte', btn_crear_mi_rest: 'Créer mon restaurant', btn_google: 'Continuer avec Google', o_separador: 'ou',
 
         mi_restaurante: 'Mon restaurant', menu_principal: 'Menu principal', cerrar_menu: 'Fermer le menu', secciones: 'Sections',
 
@@ -1092,7 +1092,25 @@ document.addEventListener('alpine:init', () => {
 
             async init() {
 
-                if (typeof window !== 'undefined') { const params = new URLSearchParams(window.location.search); if(params.get('administracion')==='1'){this.token='';params.delete('administracion');const query=params.toString();window.history.replaceState({},'',window.location.pathname+(query?'?'+query:''));} if(window.location.pathname==='/restablecer-password'){ this.authModo='restablecer';this.resetToken=params.get('token')||'';this.resetEmail=params.get('email')||'';window.history.replaceState({},'',window.location.pathname); } }
+                if (typeof window !== 'undefined') {
+                    const params = new URLSearchParams(window.location.search);
+                    if (params.get('token') && window.location.pathname !== '/restablecer-password') {
+                        const googleToken = params.get('token');
+                        this.token = googleToken;
+                        sessionStorage.setItem('adbana:token', googleToken);
+                        params.delete('token');
+                        const query = params.toString();
+                        window.history.replaceState({}, '', window.location.pathname + (query ? '?' + query : ''));
+                    }
+                    if (params.get('error')) {
+                        this.error = decodeURIComponent(params.get('error'));
+                        params.delete('error');
+                        const query = params.toString();
+                        window.history.replaceState({}, '', window.location.pathname + (query ? '?' + query : ''));
+                    }
+                    if(params.get('administracion')==='1'){this.token='';params.delete('administracion');const query=params.toString();window.history.replaceState({},'',window.location.pathname+(query?'?'+query:''));}
+                    if(window.location.pathname==='/restablecer-password'){ this.authModo='restablecer';this.resetToken=params.get('token')||'';this.resetEmail=params.get('email')||'';window.history.replaceState({},'',window.location.pathname); }
+                }
 
                 if (typeof document !== 'undefined' && document.documentElement) {
 

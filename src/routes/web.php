@@ -40,6 +40,8 @@ Route::prefix('administracion/api')->group(function () {
 
 Route::view('/panel', 'panel');
 Route::view('/login', 'panel');
+Route::get('/auth/google/redirect', [\App\Http\Controllers\GoogleAuthController::class, 'redirect']);
+Route::get('/auth/google/callback', [\App\Http\Controllers\GoogleAuthController::class, 'callback']);
 Route::get('/restablecer-password', fn () => response()->view('panel')->header('Referrer-Policy', 'no-referrer')->header('Cache-Control', 'no-store'))->name('password.reset');
 Route::get('/c/{slug}', fn (string $slug) => view('carta', ['slug' => $slug]))->where('slug', '[a-z0-9\-]+');
 

@@ -13,6 +13,7 @@ use App\Http\Controllers\CuentaMesaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\GastoController;
+use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MesaController;
 use App\Http\Controllers\ModeloCartaController;
@@ -38,6 +39,8 @@ Route::post('/auth/login', [AuthController::class, 'login'])
 
 Route::post('/auth/recuperar', [SeguridadCuentaController::class, 'solicitar'])->middleware('throttle:3,1');
 Route::post('/auth/restablecer', [SeguridadCuentaController::class, 'restablecer'])->middleware('throttle:5,1');
+Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');
 Route::get('/restaurantes', [CatalogoRestaurantesController::class, 'index'])->middleware('throttle:120,1');
 Route::get('/carta/{slug}/seguimiento', [SeguimientoPedidoController::class, 'show'])->middleware('throttle:seguimiento-publico');
 Route::get('/carta/{slug}/productos/{id}/modelo', [ModeloCartaController::class, 'show']);
