@@ -18,7 +18,7 @@ x-app: &application
     CACHE_STORE: redis
     QUEUE_CONNECTION: redis
     REDIS_HOST: redis
-    TRUSTED_PROXIES: ${GATEWAY_IP:-172.30.10.2}
+    TRUSTED_PROXIES: ${GATEWAY_IP:-172.30.10.100}
   volumes:
     - application_files:/var/www/storage
   restart: unless-stopped
@@ -70,7 +70,7 @@ services:
     depends_on: [web]
     networks:
       default:
-        ipv4_address: ${GATEWAY_IP:-172.30.10.2}
+        ipv4_address: ${GATEWAY_IP:-172.30.10.100}
 
   redis:
     image: redis:7-alpine
