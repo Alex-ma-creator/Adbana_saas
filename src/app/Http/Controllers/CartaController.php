@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Categoria;
+use App\Models\CuentaMesa;
 use App\Models\DetallePedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
@@ -79,9 +80,28 @@ class CartaController extends Controller
         });
 
         abort_if($carta === null, 404);
+        $restauranteId = Restaurante::where('slug', $slug)->where('activo', true)->value('id');
+
+        $activas = Mesa::withoutGlobalScopes()
+            ->where('restaurante_id', $restauranteId)
+            ->where('activa', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'codigo']);
+
+        $ocupadas = CuentaMesa::withoutGlobalScopes()
+            ->where('restaurante_id', $restauranteId)
+            ->where('abierta', 1)
+            ->pluck('mesa_key')
+            ->all();
+
+        $carta['mesas'] = $activas->map(fn ($m) => [
+            'id' => $m->id,
+            'nombre' => $m->nombre,
+            'ocupada' => in_array(mb_strtolower($m->nombre), $ocupadas, true),
+        ])->values()->all();
+
         if ($request->filled('mesa')) {
             $request->validate(['mesa' => ['uuid']]);
-            $restauranteId = Restaurante::where('slug', $slug)->where('activo', true)->value('id');
             $mesa = Mesa::withoutGlobalScopes()->where('restaurante_id', $restauranteId)->where('codigo', $request->string('mesa'))->where('activa', true)->firstOrFail();
             $carta['mesa'] = ['nombre' => $mesa->nombre, 'codigo' => $mesa->codigo];
         }

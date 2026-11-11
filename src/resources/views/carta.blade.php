@@ -6,14 +6,14 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
-    <link rel="stylesheet" href="/css/carta-visual.css?v=20261110ar8">
+    <link rel="stylesheet" href="/css/carta-visual.css?v=20261111m1">
     <script>
         window.ADBANA_CONFIG = {
             arPublicUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/')),
             arPublicBaseUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/'))
         };
     </script>
-    <script src="/js/carta.js?config=20261108&v=20261110ar8"></script>
+    <script src="/js/carta.js?config=20261108&v=20261111m1"></script>
     <script defer src="/js/alpine.min.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 <link rel="stylesheet" href="/css/carga.css?v=20261031d"></head>
@@ -279,7 +279,17 @@
             </label>
 
             <label class="campo" x-show="form.tipo === 'mesa'"><span x-text="t('num_mesa')">Número de mesa</span>
-                <input type="text" x-model="form.mesa" maxlength="20" inputmode="numeric">
+                <template x-if="mesas && mesas.length > 0">
+                    <select x-model="form.mesa">
+                        <option value="" disabled x-text="t('sel_mesa')">-- Selecciona tu mesa --</option>
+                        <template x-for="m in mesas" :key="m.id">
+                            <option :value="m.nombre" :disabled="m.ocupada && (!datosMesaNombre || m.nombre !== datosMesaNombre)" x-text="m.nombre + (m.ocupada ? ' (' + t('mesa_ocupada') + ')' : ' (' + t('mesa_disponible') + ')')"></option>
+                        </template>
+                    </select>
+                </template>
+                <template x-if="!mesas || mesas.length === 0">
+                    <input type="text" x-model="form.mesa" maxlength="20" placeholder="Ej. Mesa 01">
+                </template>
             </label>
 
             <label class="campo" x-show="form.tipo === 'delivery'"><span x-text="t('dir_entrega')">Dirección de entrega</span>

@@ -27,6 +27,10 @@ const ADBANA_I18N_CARTA = {
         opt_delivery: 'Delivery',
         opt_mesa: 'En mesa',
         num_mesa: 'Número de mesa',
+        sel_mesa: '-- Selecciona tu mesa --',
+        mesa_disponible: 'Disponible',
+        mesa_ocupada: 'Ocupada',
+        err_mesa_ocupada: 'La mesa seleccionada ya está ocupada.',
         dir_entrega: 'Dirección de entrega',
         telefono: 'Teléfono',
         opcional: '(opcional)',
@@ -84,6 +88,10 @@ const ADBANA_I18N_CARTA = {
         opt_delivery: 'Delivery',
         opt_mesa: 'Dine-in (at table)',
         num_mesa: 'Table number',
+        sel_mesa: '-- Select your table --',
+        mesa_disponible: 'Available',
+        mesa_ocupada: 'Occupied',
+        err_mesa_ocupada: 'The selected table is currently occupied.',
         dir_entrega: 'Delivery address',
         telefono: 'Phone',
         opcional: '(optional)',
@@ -141,6 +149,10 @@ const ADBANA_I18N_CARTA = {
         opt_delivery: 'Delivery',
         opt_mesa: 'Na mesa',
         num_mesa: 'Número da mesa',
+        sel_mesa: '-- Selecione a sua mesa --',
+        mesa_disponible: 'Disponível',
+        mesa_ocupada: 'Ocupada',
+        err_mesa_ocupada: 'A mesa selecionada já está ocupada.',
         dir_entrega: 'Endereço de entrega',
         telefono: 'Telefone',
         opcional: '(opcional)',
@@ -198,6 +210,10 @@ const ADBANA_I18N_CARTA = {
         opt_delivery: 'Livraison',
         opt_mesa: 'Sur place (à table)',
         num_mesa: 'Numéro de table',
+        sel_mesa: '-- Sélectionnez votre table --',
+        mesa_disponible: 'Disponible',
+        mesa_ocupada: 'Occupée',
+        err_mesa_ocupada: 'La table sélectionnée est déjà occupée.',
         dir_entrega: 'Adresse de livraison',
         telefono: 'Téléphone',
         opcional: '(facultatif)',
@@ -265,6 +281,8 @@ document.addEventListener('alpine:init', () => {
             visorARActivo: null,
             _timerGuiaAR: null,
             _timerBloqueoAR: null,
+            mesas: [],
+            datosMesaNombre: null,
             form: {
                 cliente_nombre: '',
                 cliente_telefono: '',
@@ -581,7 +599,17 @@ document.addEventListener('alpine:init', () => {
                     const modos=datos.restaurante.configuracion?.modalidades || ['mesa','recojo','delivery'];
                     if(!modos.includes(this.form.tipo))this.form.tipo=modos[0];
                     this.categorias = datos.carta;
-                    if(datos.mesa && modos.includes('mesa')){this.form.tipo='mesa';this.form.mesa=datos.mesa.nombre;}
+                    this.mesas = datos.mesas || [];
+                    if (datos.mesa && modos.includes('mesa')) {
+                        this.datosMesaNombre = datos.mesa.nombre;
+                        this.form.tipo = 'mesa';
+                        this.form.mesa = datos.mesa.nombre;
+                    } else if (modos.includes('mesa') && !this.form.mesa && this.mesas.length > 0) {
+                        const primeraLibre = this.mesas.find(m => !m.ocupada);
+                        if (primeraLibre) {
+                            this.form.mesa = primeraLibre.nombre;
+                        }
+                    }
                     document.title = datos.restaurante.nombre + ' | ' + this.t('titulo_carta');
                     this.restaurarCarrito();
                     const pendiente = sessionStorage.getItem('pedido-pendiente:' + this.slug);
@@ -682,7 +710,16 @@ document.addEventListener('alpine:init', () => {
                     if (!f.direccion.trim()) faltan.push(this.t('val_direccion'));
                 }
 
-                if (f.tipo === 'mesa' && !f.mesa.trim()) faltan.push(this.t('val_mesa'));
+                if (f.tipo === 'mesa') {
+                    if (!f.mesa.trim()) {
+                        faltan.push(this.t('val_mesa'));
+                    } else if (this.mesas.length > 0) {
+                        const mSel = this.mesas.find(m => m.nombre === f.mesa.trim());
+                        if (mSel && mSel.ocupada && (!this.datosMesaNombre || mSel.nombre !== this.datosMesaNombre)) {
+                            faltan.push(this.t('err_mesa_ocupada'));
+                        }
+                    }
+                }
                 if (this.unidades === 0) faltan.push(this.t('val_items'));
 
                 return faltan;
