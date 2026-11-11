@@ -8,6 +8,8 @@ src/node_modules
 src/storage/logs/*
 src/storage/framework/cache/*
 src/storage/framework/views/*
+src/bootstrap/cache/*.php
+!src/bootstrap/cache/.gitignore
 work
 outputs
 *.docx

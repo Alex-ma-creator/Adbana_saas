@@ -7,13 +7,14 @@ WORKDIR /var/www
 COPY src/composer.json src/composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-scripts --no-autoloader
 COPY src/ ./
-RUN composer dump-autoload --no-dev --optimize --no-scripts \
+RUN rm -f bootstrap/cache/*.php \
+ && composer dump-autoload --no-dev --optimize --no-scripts \
  && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
  && chown -R www-data:www-data storage bootstrap/cache
 COPY deploy/php-production.ini /usr/local/etc/php/conf.d/production.ini
 COPY deploy/php-fpm-production.conf /usr/local/etc/php-fpm.d/zz-adbana.conf
 COPY deploy/entrypoint.sh /usr/local/bin/adbana-entrypoint
-RUN chmod +x /usr/local/bin/adbana-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/adbana-entrypoint && chmod +x /usr/local/bin/adbana-entrypoint
 ENTRYPOINT ["adbana-entrypoint"]
 CMD ["php-fpm"]
 
