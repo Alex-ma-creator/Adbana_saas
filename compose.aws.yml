@@ -1,9 +1,5 @@
 name: adbana-production
 x-app: &application
-  build:
-    context: .
-    dockerfile: Dockerfile.production
-    target: application
   image: adbana-app:${APP_VERSION:-local}
   env_file: .env.production
   environment:
@@ -33,6 +29,10 @@ x-app: &application
 services:
   app:
     <<: *application
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      target: application
     healthcheck:
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1',9000) ? 0 : 1);"]
       interval: 30s
