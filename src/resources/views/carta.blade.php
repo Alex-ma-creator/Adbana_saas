@@ -6,8 +6,14 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
-    <link rel="stylesheet" href="/css/carta-visual.css?v=1">
-    <script src="/js/carta.js?config=20261108&v=20261031b"></script>
+    <link rel="stylesheet" href="/css/carta-visual.css?v=20261110ar8">
+    <script>
+        window.ADBANA_CONFIG = {
+            arPublicUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/')),
+            arPublicBaseUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/'))
+        };
+    </script>
+    <script src="/js/carta.js?config=20261108&v=20261110ar8"></script>
     <script defer src="/js/alpine.min.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 <link rel="stylesheet" href="/css/carga.css?v=20261031d"></head>
@@ -69,9 +75,68 @@
                 <div class="carta-tarjetas">
                 <template x-for="p in c.productos" :key="p.id">
                     <article class="plato">
-                        <div class="foto">
-                            <template x-if="p.imagen"><img :src="p.imagen" alt="" loading="lazy"></template>
-                            <template x-if="!p.imagen"><span x-text="p.nombre.charAt(0).toUpperCase()"></span></template>
+                        <div class="foto" :class="{ 'tiene-3d': p.modelo_3d }">
+                            <template x-if="p.modelo_3d">
+                                <div class="visor-3d-wrap">
+                                    <span class="badge-3d" aria-hidden="true">✨ 3D Interactivo</span>
+                                    <model-viewer
+                                        :id="'mv-' + p.id"
+                                        :src="p.modelo_3d + '?v=ar8'"
+                                        :ios-src="obtenerIosSrc(p)"
+                                        :alt="p.nombre"
+                                        camera-controls
+                                        camera-orbit="0deg 65deg 105%"
+                                        min-camera-orbit="auto 15deg 20%"
+                                        max-camera-orbit="auto 88deg 300%"
+                                        auto-rotate
+                                        rotation-per-second="25deg"
+                                        touch-action="pan-y"
+                                        ar
+                                        ar-modes="webxr scene-viewer quick-look"
+                                        ar-placement="floor"
+                                        ar-scale="fixed"
+                                        xr-environment
+                                        shadow-intensity="1.6"
+                                        shadow-softness="0.75"
+                                        exposure="1.1"
+                                        tone-mapping="neutral"
+                                        loading="lazy"
+                                        reveal="auto"
+                                        @load="normalizarEscalaReal($event.target, p)"
+                                        @ar-status="actualizarEstadoAR($event, $event.target)"
+                                        @ar-tracking="actualizarTrackingAR($event, $event.target)"
+                                    >
+                                        <button slot="ar-button" style="display:none" aria-hidden="true"></button>
+                                        <div class="ar-hud-escaneo" @beforexrselect.prevent>
+                                            📲 Apunta al borde o centro de la mesa e inclina ligeramente el celular para fijar el plato
+                                        </div>
+                                        <div class="ar-hud-tracking-perdido" x-show="trackingPerdido" @beforexrselect.prevent>
+                                            <p>⚠️ Muy cerca de la superficie — aléjate unos centímetros mirando a la mesa para recuperar el plato</p>
+                                            <button type="button" class="btn-ar-recentrar"
+                                                    @beforexrselect.prevent
+                                                    @click.stop="recentrarPlatoEnMesa()">
+                                                🔄 Re-centrar plato en mesa
+                                            </button>
+                                        </div>
+                                        <div class="ar-lock-shield" :class="{ 'is-locked': ancladoFijo }"
+                                             @beforexrselect.prevent
+                                             @pointerdown.stop
+                                             @touchstart.stop></div>
+                                        <div class="ar-hud-controles" @beforexrselect.prevent>
+                                            <button type="button" class="btn-ar-lock" :class="{ 'is-locked': ancladoFijo }"
+                                                    @beforexrselect.prevent
+                                                    @click.stop="alternarAnclajePlato()">
+                                                <span x-text="ancladoFijo ? '🔒 Plato fijo en mesa (Toca aquí para recolocar)' : '🎯 Modo recolocar activo (Toca la mesa para mover el plato y luego fija) · 📌 Fijar plato aquí'"></span>
+                                            </button>
+                                        </div>
+                                    </model-viewer>
+                                    <button type="button" class="btn-ar-flotante" @click="abrirAR(p, document.getElementById('mv-' + p.id))">
+                                        📱 Ver en AR
+                                    </button>
+                                </div>
+                            </template>
+                            <template x-if="!p.modelo_3d && p.imagen"><img :src="p.imagen" alt="" loading="lazy"></template>
+                            <template x-if="!p.modelo_3d && !p.imagen"><span x-text="p.nombre.charAt(0).toUpperCase()"></span></template>
                         </div>
 
                         <div class="info">
@@ -81,36 +146,84 @@
                             <span class="agotado" x-show="!p.disponible" x-text="t('agotado')">Agotado</span>
                         </div>
 
-                        <button type="button" class="btn" @click="$el.nextElementSibling.showModal()">Ver plato</button>
-                        <dialog class="carta-detalle" x-data="{ visor: false }" @close="visor=false" @click.self="$el.close()">
-                            <form method="dialog"><button class="btn" aria-label="Cerrar ficha">Cerrar</button></form>
-                            <template x-if="p.imagen"><img :src="p.imagen" :alt="p.nombre" loading="lazy"></template>
-                            <h2 x-text="p.nombre"></h2>
-                            <p x-text="p.descripcion"></p>
-                            <button type="button" class="btn carta-ar" x-show="p.modelo_3d && !visor" @click="visor=true">
-                                <span aria-hidden="true">●</span> Abrir modelo 3D
+                        <div class="acciones-plato">
+                            <button type="button" class="btn" @click="$el.closest('.plato').querySelector('dialog.carta-detalle').showModal()">Ver detalles</button>
+                            <button type="button" class="btn btn-ar-accion" x-show="p.modelo_3d" @click="abrirAR(p, document.getElementById('mv-' + p.id))">
+                                📱 Ver en tu mesa (AR)
                             </button>
-                            <template x-if="visor && p.modelo_3d">
-                                <div x-data="{ mensajeAR: '' }">
-                                    <model-viewer :src="p.modelo_3d" :alt="p.nombre" camera-controls touch-action="pan-y" ar ar-modes="webxr scene-viewer quick-look"
-                                        @ar-status="if ($event.detail.status === 'failed') mensajeAR = 'No se pudo abrir la cámara. Revisa los permisos de Chrome y los servicios de realidad aumentada de Android.'">
-                                        <button type="button" slot="ar-button" hidden tabindex="-1" aria-hidden="true"></button>
+                        </div>
+
+                        <dialog class="carta-detalle" @click.self="$el.close()">
+                            <form method="dialog"><button class="btn" aria-label="Cerrar ficha">Cerrar</button></form>
+                            <template x-if="p.modelo_3d">
+                                <div class="detalle-3d-wrap">
+                                    <span class="badge-3d" aria-hidden="true">✨ Vista 3D 360°</span>
+                                    <model-viewer
+                                        :id="'mv-modal-' + p.id"
+                                        :src="p.modelo_3d + '?v=ar8'"
+                                        :ios-src="obtenerIosSrc(p)"
+                                        :alt="p.nombre"
+                                        camera-controls
+                                        camera-orbit="0deg 65deg 105%"
+                                        min-camera-orbit="auto 15deg 20%"
+                                        max-camera-orbit="auto 88deg 300%"
+                                        auto-rotate
+                                        rotation-per-second="20deg"
+                                        touch-action="pan-y"
+                                        ar
+                                        ar-modes="webxr scene-viewer quick-look"
+                                        ar-placement="floor"
+                                        ar-scale="fixed"
+                                        xr-environment
+                                        shadow-intensity="1.6"
+                                        shadow-softness="0.75"
+                                        exposure="1.1"
+                                        tone-mapping="neutral"
+                                        loading="lazy"
+                                        reveal="auto"
+                                        @load="normalizarEscalaReal($event.target, p)"
+                                        @ar-status="actualizarEstadoAR($event, $event.target)"
+                                        @ar-tracking="actualizarTrackingAR($event, $event.target)"
+                                    >
+                                        <button slot="ar-button" style="display:none" aria-hidden="true"></button>
+                                        <div class="ar-hud-escaneo" @beforexrselect.prevent>
+                                            📲 Apunta al borde o centro de la mesa e inclina ligeramente el celular para fijar el plato
+                                        </div>
+                                        <div class="ar-hud-tracking-perdido" x-show="trackingPerdido" @beforexrselect.prevent>
+                                            <p>⚠️ Muy cerca de la superficie — aléjate unos centímetros mirando a la mesa para recuperar el plato</p>
+                                            <button type="button" class="btn-ar-recentrar"
+                                                    @beforexrselect.prevent
+                                                    @click.stop="recentrarPlatoEnMesa()">
+                                                🔄 Re-centrar plato en mesa
+                                            </button>
+                                        </div>
+                                        <div class="ar-lock-shield" :class="{ 'is-locked': ancladoFijo }"
+                                             @beforexrselect.prevent
+                                             @pointerdown.stop
+                                             @touchstart.stop></div>
+                                        <div class="ar-hud-controles" @beforexrselect.prevent>
+                                            <button type="button" class="btn-ar-lock" :class="{ 'is-locked': ancladoFijo }"
+                                                    @beforexrselect.prevent
+                                                    @click.stop="alternarAnclajePlato()">
+                                                <span x-text="ancladoFijo ? '🔒 Plato fijo en mesa (Toca aquí para recolocar)' : '🎯 Modo recolocar activo (Toca la mesa para mover el plato y luego fija) · 📌 Fijar plato aquí'"></span>
+                                            </button>
+                                        </div>
                                     </model-viewer>
-                                    <button type="button" class="btn carta-ar" @click="
-                                        const modelo = $el.previousElementSibling;
-                                        if (!window.isSecureContext) {
-                                            mensajeAR = 'Abre esta carta con HTTPS en el celular para usar la cámara.';
-                                        } else if (!modelo.canActivateAR) {
-                                            mensajeAR = 'La cámara AR no está disponible. Abre la carta en Chrome para Android y comprueba que tu equipo sea compatible y tenga Google Play Services para RA actualizado.';
-                                        } else {
-                                            mensajeAR = '';
-                                            modelo.activateAR().catch(() => mensajeAR = 'No se pudo iniciar la cámara de realidad aumentada.');
-                                        }
-                                    "><span aria-hidden="true">●</span> Activar cámara · Ver en tu mesa</button>
-                                    <p role="status" x-show="mensajeAR" x-text="mensajeAR"></p>
+                                    <p class="ar-guia-tip">
+                                        💡 <strong>Tip de anclaje:</strong> Apunta a tu mesa. Si es muy lisa o de vidrio, enfoca cerca del borde o de un objeto (servilletero, vaso o individual) para que el sensor fije el plato al instante.
+                                    </p>
+                                    <button type="button" class="btn carta-ar" @click="abrirAR(p, document.getElementById('mv-modal-' + p.id))">
+                                        📱 Ver en tu mesa (AR)
+                                    </button>
+                                    <button type="button" class="btn-sec carta-ar-nativo" @click="abrirARNativo(p, document.getElementById('mv-modal-' + p.id))">
+                                        🚀 Abrir en Google AR Nativo
+                                    </button>
                                 </div>
                             </template>
-                            <strong x-text="money(p.precio)"></strong>
+                            <template x-if="!p.modelo_3d && p.imagen"><img :src="p.imagen" :alt="p.nombre" loading="lazy"></template>
+                            <h2 x-text="p.nombre"></h2>
+                            <p x-text="p.descripcion"></p>
+                            <strong class="precio-detalle" x-text="money(p.precio)"></strong>
                         </dialog>
 
                         <div class="cantidad" x-show="p.disponible">
@@ -214,6 +327,47 @@
 
             <a class="btn" :href="whatsapp" target="_blank" rel="noopener" x-show="whatsapp" x-text="t('avisar_whatsapp')">Avisar por WhatsApp</a>
             <button type="button" class="btn-sec" @click="pedido = null" x-text="t('listo')">Listo</button>
+        </div>
+    </div>
+
+    <div class="fondo" x-show="modalAR" @click.self="modalAR = false" style="display:none;" x-cloak>
+        <div class="hoja hoja-ar" style="max-width: 440px; text-align: center; padding: 28px 24px; border-radius: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 13px; font-weight: 700; color: #ff914d; letter-spacing: 0.05em; text-transform: uppercase;">
+                    ✨ Realidad Aumentada
+                </span>
+                <button type="button" @click="modalAR = false" style="background: transparent; border: 0; color: #a8a29e; font-size: 22px; cursor: pointer; padding: 4px;">✕</button>
+            </div>
+
+            <h3 style="margin: 0 0 8px 0; color: #fff; font-size: 22px;" x-text="'Proyecta ' + (platoARSeleccionado?.nombre || 'el plato')"></h3>
+            <p x-show="mensajeT5SinAR" style="color: #fde68a; background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.45); border-radius: 12px; padding: 10px 12px; font-size: 13px; margin: 0 0 14px 0; line-height: 1.4;">
+                📱 <strong>Tu celular no soporta realidad aumentada; puedes ver el plato en 3D</strong> girándolo con el dedo en la carta o escanear este QR con otro teléfono compatible.
+            </p>
+            <p style="color: #d6d3d1; font-size: 14px; margin: 0 0 20px 0; line-height: 1.4;">
+                Abre la cámara de tu celular y <strong>escanea este código QR</strong> para ver el plato en 3D colocado sobre tu mesa en tamaño real.
+            </p>
+
+            <div style="background: #ffffff; padding: 16px; border-radius: 16px; display: inline-block; margin-bottom: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+                <template x-if="platoARSeleccionado">
+                    <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=' + encodeURIComponent(urlARParaCelular)"
+                         alt="QR de Realidad Aumentada"
+                         width="220" height="220" style="display: block; border-radius: 6px;">
+                </template>
+            </div>
+
+            <p style="font-size: 13px; color: #a8a29e; margin: 0 0 16px 0; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px;">
+                📶 Conéctate al mismo Wi-Fi del restaurante para que tu teléfono cargue los modelos 3D al instante.
+            </p>
+
+            <button type="button" class="btn" @click="modalAR = false" style="width: 100%;">Listo, cerrar</button>
+        </div>
+    </div>
+
+    <div class="ar-guia-toast" x-show="avisoGuiaAR" x-cloak role="status" aria-live="polite" @click="avisoGuiaAR = false">
+        <span>🎯</span>
+        <div>
+            <strong>Anclando plato en tu mesa…</strong>
+            <small>Mueve suavemente el celular apuntando a la mesa. Si es muy lisa o brillante, enfoca cerca del borde o de un objeto para fijar el plato al instante.</small>
         </div>
     </div>
 </div>

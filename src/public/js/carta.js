@@ -256,6 +256,15 @@ document.addEventListener('alpine:init', () => {
             errores: [],
             pedido: null,
             nombrePedido: '',
+            modalAR: false,
+            platoARSeleccionado: null,
+            mensajeT5SinAR: false,
+            avisoGuiaAR: false,
+            ancladoFijo: false,
+            trackingPerdido: false,
+            visorARActivo: null,
+            _timerGuiaAR: null,
+            _timerBloqueoAR: null,
             form: {
                 cliente_nombre: '',
                 cliente_telefono: '',
@@ -285,6 +294,254 @@ document.addEventListener('alpine:init', () => {
                 if (this.restaurante) {
                     document.title = this.restaurante.nombre + ' | ' + this.t('titulo_carta');
                 }
+            },
+
+            get urlARParaCelular() {
+                const cfgUrl = (window.ADBANA_CONFIG && (window.ADBANA_CONFIG.arPublicUrl || window.ADBANA_CONFIG.arPublicBaseUrl))
+                    ? String(window.ADBANA_CONFIG.arPublicUrl || window.ADBANA_CONFIG.arPublicBaseUrl).replace(/\/+$/, '')
+                    : '';
+                const base = cfgUrl || window.location.origin;
+                return base + '/c/' + encodeURIComponent(this.slug);
+            },
+
+            obtenerIosSrc(p) {
+                if (!p || !p.modelo_3d) return '';
+                const raw = String(p.modelo_3d).split('?')[0];
+                if (/\.glb$/i.test(raw)) {
+                    return raw.replace(/\.glb$/i, '.usdz') + '?v=ar8#allowsContentScaling=0';
+                }
+                const nombre = String(p.nombre || '').toLowerCase();
+                if (nombre.includes('pizza')) return '/demo-ar/models/pizza.usdz?v=ar8#allowsContentScaling=0';
+                if (nombre.includes('hamburguesa') || nombre.includes('burger')) return '/demo-ar/models/hamburguesa.usdz?v=ar8#allowsContentScaling=0';
+                if (nombre.includes('brocheta') || nombre.includes('anticucho') || nombre.includes('parrilla')) return '/demo-ar/models/brocheta.usdz?v=ar8#allowsContentScaling=0';
+                return '';
+            },
+
+            normalizarEscalaReal(elViewer, p) {
+                if (!elViewer || typeof elViewer.getDimensions !== 'function') return;
+                try {
+                    const dim = elViewer.getDimensions();
+                    if (!dim) return;
+                    const maxHoriz = Math.max(dim.x || 0, dim.z || 0);
+                    if (maxHoriz <= 0) return;
+
+                    const nombre = ((p && p.nombre) ? String(p.nombre) : '').toLowerCase();
+                    let objetivoMetros = 0.25;
+                    if (nombre.includes('pizza')) {
+                        objetivoMetros = 0.35;
+                    } else if (nombre.includes('hamburguesa') || nombre.includes('burger')) {
+                        objetivoMetros = 0.14;
+                    } else if (nombre.includes('brocheta') || nombre.includes('anticucho') || nombre.includes('parrilla')) {
+                        objetivoMetros = 0.25;
+                    }
+
+                    // Solo ajustamos si el modelo subido viene fuera de escala métrica real (< 6cm o > 50cm)
+                    if (maxHoriz < 0.06 || maxHoriz > 0.50) {
+                        const factor = Number((objetivoMetros / maxHoriz).toFixed(4));
+                        elViewer.scale = `${factor} ${factor} ${factor}`;
+                        if (typeof elViewer.updateFraming === 'function') {
+                            elViewer.updateFraming();
+                        }
+                    }
+                } catch (e) {}
+            },
+
+            parchearPlanoCercanoXR(elViewer) {
+                const viewer = elViewer || this.visorARActivo;
+                if (!viewer || typeof Object.getOwnPropertySymbols !== 'function') return;
+                try {
+                    const symbols = Object.getOwnPropertySymbols(viewer);
+                    for (const sym of symbols) {
+                        const val = viewer[sym];
+                        if (!val || typeof val !== 'object') continue;
+
+                        // Parchear cámara interna de Three.js (ModelScene)
+                        if (val.camera && typeof val.camera.updateProjectionMatrix === 'function') {
+                            val.camera.near = 0.01;
+                            val.camera.updateProjectionMatrix();
+                        }
+                        if (val.xrCamera && typeof val.xrCamera.updateProjectionMatrix === 'function') {
+                            val.xrCamera.near = 0.01;
+                            val.xrCamera.updateProjectionMatrix();
+                        }
+
+                        // Parchear WebXRManager y XRSession (depthNear: 0.01, depthFar: 20.0)
+                        const candidatosRenderer = [
+                            val.threeRenderer,
+                            val.renderer && val.renderer.threeRenderer,
+                            val.arRenderer && val.arRenderer.threeRenderer,
+                            val,
+                        ];
+                        for (const r of candidatosRenderer) {
+                            if (!r || !r.xr) continue;
+                            if (typeof r.xr.getSession === 'function') {
+                                const session = r.xr.getSession();
+                                if (session && typeof session.updateRenderState === 'function') {
+                                    session.updateRenderState({ depthNear: 0.01, depthFar: 20.0 });
+                                }
+                            }
+                            if (typeof r.xr.getCamera === 'function') {
+                                const xrCam = r.xr.getCamera();
+                                if (xrCam) {
+                                    xrCam.near = 0.01;
+                                    if (typeof xrCam.updateProjectionMatrix === 'function') {
+                                        xrCam.updateProjectionMatrix();
+                                    }
+                                    if (Array.isArray(xrCam.cameras)) {
+                                        for (const subCam of xrCam.cameras) {
+                                            if (subCam) {
+                                                subCam.near = 0.01;
+                                                if (typeof subCam.updateProjectionMatrix === 'function') {
+                                                    subCam.updateProjectionMatrix();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {}
+            },
+
+            actualizarEstadoAR(ev, elViewer) {
+                const status = ev && ev.detail ? ev.detail.status : '';
+                const viewer = elViewer || (ev && ev.target) || this.visorARActivo;
+                if (viewer) this.visorARActivo = viewer;
+
+                if (status === 'session-started') {
+                    if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                    this.ancladoFijo = false;
+                    this.trackingPerdido = false;
+                    this.parchearPlanoCercanoXR(viewer);
+                } else if (status === 'object-placed') {
+                    this.trackingPerdido = false;
+                    this.parchearPlanoCercanoXR(viewer);
+                    if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                    this._timerBloqueoAR = setTimeout(() => {
+                        this.ancladoFijo = true;
+                        this.parchearPlanoCercanoXR(viewer);
+                    }, 400);
+                } else if (status === 'not-presenting' || status === 'failed') {
+                    if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                    this.ancladoFijo = false;
+                    this.trackingPerdido = false;
+                }
+            },
+
+            actualizarTrackingAR(ev, elViewer) {
+                const status = ev && ev.detail ? ev.detail.status : '';
+                const viewer = elViewer || (ev && ev.target) || this.visorARActivo;
+                if (viewer) this.visorARActivo = viewer;
+
+                if (status === 'not-tracking') {
+                    this.trackingPerdido = true;
+                    this.parchearPlanoCercanoXR(viewer);
+                } else if (status === 'tracking') {
+                    this.trackingPerdido = false;
+                    this.parchearPlanoCercanoXR(viewer);
+                }
+            },
+
+            alternarAnclajePlato() {
+                if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                this.ancladoFijo = !this.ancladoFijo;
+                this.parchearPlanoCercanoXR(this.visorARActivo);
+            },
+
+            recentrarPlatoEnMesa() {
+                if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                this.ancladoFijo = false;
+                this.trackingPerdido = false;
+                this.parchearPlanoCercanoXR(this.visorARActivo);
+            },
+
+            mostrarGuiaAR() {
+                this.avisoGuiaAR = true;
+                if (this._timerGuiaAR) clearTimeout(this._timerGuiaAR);
+                this._timerGuiaAR = setTimeout(() => {
+                    this.avisoGuiaAR = false;
+                }, 6500);
+            },
+
+            redireccionarHttpsMovilSiNecesario() {
+                const ua = navigator.userAgent || '';
+                const esIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                const esAndroid = /Android/i.test(ua);
+                const esMovil = esIOS || esAndroid;
+                const cfgBase = (window.ADBANA_CONFIG && (window.ADBANA_CONFIG.arPublicUrl || window.ADBANA_CONFIG.arPublicBaseUrl))
+                    ? String(window.ADBANA_CONFIG.arPublicUrl || window.ADBANA_CONFIG.arPublicBaseUrl).replace(/\/+$/, '')
+                    : '';
+                if (esMovil && window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && cfgBase) {
+                    window.location.href = cfgBase + '/c/' + encodeURIComponent(this.slug);
+                    return true;
+                }
+                return false;
+            },
+
+            async abrirAR(p, elViewer) {
+                if (this.redireccionarHttpsMovilSiNecesario()) return;
+
+                const ua = navigator.userAgent || '';
+                const esIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                const esAndroid = /Android/i.test(ua);
+                const esMovil = esIOS || esAndroid;
+
+                this.mensajeT5SinAR = false;
+                this.trackingPerdido = false;
+                this.ancladoFijo = false;
+
+                if (elViewer && typeof elViewer.activateAR === 'function') {
+                    this.visorARActivo = elViewer;
+                    elViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+                    this.mostrarGuiaAR();
+                    try {
+                        await elViewer.activateAR();
+                        this.parchearPlanoCercanoXR(elViewer);
+                        return;
+                    } catch (e) {}
+                }
+
+                this.platoARSeleccionado = p;
+                this.mensajeT5SinAR = esMovil;
+                this.modalAR = true;
+            },
+
+            async abrirARNativo(p, elViewer) {
+                if (this.redireccionarHttpsMovilSiNecesario()) return;
+
+                this.mensajeT5SinAR = false;
+                this.trackingPerdido = false;
+                this.ancladoFijo = false;
+
+                if (elViewer && typeof elViewer.activateAR === 'function') {
+                    this.visorARActivo = elViewer;
+                    const modosPrevios = elViewer.getAttribute('ar-modes') || 'webxr scene-viewer quick-look';
+                    elViewer.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
+                    this.mostrarGuiaAR();
+                    try {
+                        await elViewer.activateAR();
+                        setTimeout(() => {
+                            elViewer.setAttribute('ar-modes', modosPrevios);
+                        }, 1200);
+                        return;
+                    } catch (e) {
+                        elViewer.setAttribute('ar-modes', modosPrevios);
+                    }
+                }
+
+                const ua = navigator.userAgent || '';
+                if (/Android/i.test(ua) && p && p.modelo_3d) {
+                    const fileUrl = new URL(p.modelo_3d, window.location.origin).href;
+                    const title = encodeURIComponent(p.nombre || 'Plato 3D');
+                    const intentUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(fileUrl)}&mode=ar_preferred&resizable=false&title=${title}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(window.location.href)};end;`;
+                    window.location.href = intentUrl;
+                    return;
+                }
+
+                this.platoARSeleccionado = p;
+                this.mensajeT5SinAR = false;
+                this.modalAR = true;
             },
 
             async consultarBackend(url, opciones) {

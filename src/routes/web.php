@@ -44,6 +44,7 @@ Route::get('/auth/google/redirect', [\App\Http\Controllers\GoogleAuthController:
 Route::get('/auth/google/callback', [\App\Http\Controllers\GoogleAuthController::class, 'callback']);
 Route::get('/restablecer-password', fn () => response()->view('panel')->header('Referrer-Policy', 'no-referrer')->header('Cache-Control', 'no-store'))->name('password.reset');
 Route::get('/c/{slug}', fn (string $slug) => view('carta', ['slug' => $slug]))->where('slug', '[a-z0-9\-]+');
+Route::get('/m/{slug}', fn (string $slug) => view('carta', ['slug' => $slug]))->where('slug', '[a-z0-9\-]+');
 
 Route::get('/fotos-platos/{archivo}', [\App\Http\Controllers\ProductoController::class, 'foto'])
     ->where('archivo', '[A-Za-z0-9]{40}\.(jpg|jpeg|png|webp)');

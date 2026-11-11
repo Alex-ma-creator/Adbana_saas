@@ -10,6 +10,22 @@ class VerificarCorsEstricto
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->is('api/carta/*/productos/*/modelo')) {
+            if ($request->isMethod('OPTIONS')) {
+                return response('', 204)
+                    ->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', '*')
+                    ->header('Access-Control-Max-Age', '86400');
+            }
+
+            $response = $next($request);
+            $response->headers->set('Access-Control-Allow-Origin', '*');
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+
+            return $response;
+        }
+
         $origin = $request->headers->get('Origin');
 
         if ($origin !== null && trim($origin) !== '' && $request->is('api', 'api/*')) {
