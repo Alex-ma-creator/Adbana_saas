@@ -12,28 +12,101 @@ use Illuminate\Validation\ValidationException;
 final class InventarioPedido
 {
     /** @return array<int, string> Costos unitarios históricos, calculados con la receta vigente. */
-    public function descontar(Pedido $pedido, Collection $cantidades, ?int $userId, string $motivo): array
+    public function descontar(Pedido $pedido, Collection $cantidades, ?int $userId, string $motivo, ?Collection $productosBloqueados = null): array
     {
-        $recetas = DB::table('recetas')->where('restaurante_id', $pedido->restaurante_id)->whereIn('producto_id', $cantidades->keys())->get()->groupBy('producto_id');
+        $recetas = DB::table('recetas')
+            ->where('restaurante_id', $pedido->restaurante_id)
+            ->whereIn('producto_id', $cantidades->keys())
+            ->get(['producto_id', 'insumo_id', 'cantidad'])
+            ->groupBy('producto_id');
+
         $necesarios = [];
         $componentes = [];
         foreach ($cantidades as $id => $cantidad) {
-            $componentes[$id] = $recetas->has($id) ? $recetas[$id]->mapWithKeys(fn ($r) => [$r->insumo_id => $r->cantidad])->all() : [$id => 1];
+            $componentes[$id] = $recetas->has($id)
+                ? $recetas[$id]->mapWithKeys(fn ($r) => [$r->insumo_id => $r->cantidad])->all()
+                : [$id => 1];
             foreach ($componentes[$id] as $insumo => $factor) {
                 $necesarios[$insumo] = ($necesarios[$insumo] ?? 0) + $factor * $cantidad;
             }
         }
         ksort($necesarios);
-        $stocks = Producto::whereIn('id', array_keys($necesarios))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+        // Reutiliza los productos ya bloqueados con FOR UPDATE en la transacción del pedido cuando no hay insumos externos.
+        $stocks = $productosBloqueados ? $productosBloqueados->only(array_keys($necesarios)) : collect();
+        $faltantes = array_values(array_diff(array_keys($necesarios), $stocks->keys()->all()));
+        if ($faltantes !== []) {
+            $extra = Producto::whereIn('id', $faltantes)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id', 'nombre', 'costo', 'stock'])
+                ->keyBy('id');
+            $stocks = $stocks->union($extra);
+        }
+
         foreach ($necesarios as $id => $cantidad) {
             $producto = $stocks->get($id);
             if (! $producto || $cantidad > $producto->stock) {
                 throw ValidationException::withMessages(['items' => 'Stock insuficiente de '.($producto?->nombre ?? 'un insumo').'.']);
             }
-            $producto->decrement('stock', $cantidad);
-            MovimientoStock::create(['producto_id' => $id, 'pedido_id' => $pedido->id, 'user_id' => $userId, 'tipo' => 'salida', 'cantidad' => $cantidad, 'motivo' => $motivo]);
-            DB::table('consumos_pedido')->insert(['restaurante_id' => $pedido->restaurante_id, 'pedido_id' => $pedido->id, 'producto_id' => $id, 'cantidad' => $cantidad]);
         }
+
+        $ahora = now();
+        if (count($necesarios) === 1) {
+            $id = array_key_first($necesarios);
+            DB::table('productos')
+                ->where('id', $id)
+                ->where('restaurante_id', $pedido->restaurante_id)
+                ->decrement('stock', $necesarios[$id], ['updated_at' => $ahora]);
+        } elseif (count($necesarios) > 1) {
+            $cases = [];
+            $bindings = [];
+            foreach ($necesarios as $id => $cantidad) {
+                $cases[] = 'WHEN ? THEN stock - ?';
+                $bindings[] = (int) $id;
+                $bindings[] = (int) $cantidad;
+            }
+            $ids = array_keys($necesarios);
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $bindings[] = $ahora;
+            foreach ($ids as $id) {
+                $bindings[] = (int) $id;
+            }
+            $bindings[] = $pedido->restaurante_id;
+
+            DB::update(
+                'UPDATE productos SET stock = CASE id '.implode(' ', $cases).' END, updated_at = ? WHERE id IN ('.$placeholders.') AND restaurante_id = ?',
+                $bindings
+            );
+        }
+
+        $movimientos = [];
+        $consumos = [];
+        foreach ($necesarios as $id => $cantidad) {
+            $movimientos[] = [
+                'restaurante_id' => $pedido->restaurante_id,
+                'producto_id'    => $id,
+                'pedido_id'      => $pedido->id,
+                'user_id'        => $userId,
+                'tipo'           => 'salida',
+                'cantidad'       => $cantidad,
+                'motivo'         => $motivo,
+                'created_at'     => $ahora,
+                'updated_at'     => $ahora,
+            ];
+            $consumos[] = [
+                'restaurante_id' => $pedido->restaurante_id,
+                'pedido_id'      => $pedido->id,
+                'producto_id'    => $id,
+                'cantidad'       => $cantidad,
+            ];
+        }
+
+        if ($movimientos !== []) {
+            DB::table('movimientos_stock')->insert($movimientos);
+            DB::table('consumos_pedido')->insert($consumos);
+        }
+
         $costos = [];
         foreach ($componentes as $id => $partes) {
             $costo = 0;

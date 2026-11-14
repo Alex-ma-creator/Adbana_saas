@@ -21,11 +21,14 @@ final class CuentasMesa
         }
 
         $mesaKey = mb_strtolower($mesa);
+        $candidatos = array_values(array_unique([
+            $mesaKey,
+            'mesa '.$mesaKey,
+            'mesa '.ltrim($mesaKey, '0'),
+            'mesa '.str_pad($mesaKey, 2, '0', STR_PAD_LEFT),
+        ]));
 
-        $registrada = Mesa::where('nombre_key', $mesaKey)
-            ->orWhere('nombre_key', 'mesa '.$mesaKey)
-            ->orWhere('nombre_key', 'mesa '.ltrim($mesaKey, '0'))
-            ->orWhere('nombre_key', 'mesa '.str_pad($mesaKey, 2, '0', STR_PAD_LEFT))
+        $registrada = Mesa::whereIn('nombre_key', $candidatos)
             ->lockForUpdate()
             ->first();
 

@@ -9,4 +9,7 @@ mkdir -p storage/framework/cache/data storage/framework/sessions storage/framewo
 chown -R www-data:www-data storage bootstrap/cache
 php artisan package:discover --no-interaction >/dev/null
 php artisan config:cache --no-interaction >/dev/null
+php artisan route:cache --no-interaction >/dev/null
+php artisan event:cache --no-interaction >/dev/null
+php artisan view:cache --no-interaction >/dev/null
 exec "$@"
