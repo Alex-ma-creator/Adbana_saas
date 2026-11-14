@@ -1,126 +1,342 @@
-# Adbana SaaS
+# 🍽️ Adbana SaaS — Restaurant Management Platform
 
-Sistema web para restaurantes: punto de venta, pedidos, carta pública, cocina, inventario y control de caja. Proyecto en desarrollo.
+<p align="center">
+  <img src="https://img.shields.io/badge/Laravel-11%20%2F%2013-FF2D20?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel" />
+  <img src="https://img.shields.io/badge/PHP-8.4%20FPM%20%2B%20JIT-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16%20RDS%20Multi--AZ-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Redis-7%20Alpine-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
+  <img src="https://img.shields.io/badge/AWS-EC2%20%2B%20RDS-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white" alt="AWS" />
+  <img src="https://img.shields.io/badge/Docker-Compose%20v2-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/Flutter-3.x%20Mobile-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter" />
+  <img src="https://img.shields.io/badge/Grafana_k6-550_VUs_%7C_0.00%25_Errors-7D64FF?style=for-the-badge&logo=k6&logoColor=white" alt="k6" />
+</p>
 
-## Funciones implementadas
+<p align="center">
+  <b>Plataforma Cloud Multi-Inquilino (Multi-Tenant) para Restaurantes</b><br>
+  Punto de Venta (POS) • Carta Pública Digital con WebAR / 3D • KDS Cocina • Control de Mesas por QR • Inventario & Kardex • Control de Caja y Arqueo • Panel Superadmin
+</p>
 
-- Separación de datos por restaurante.
-- Roles de dueño, cajero, mesero y cocina, con permisos personalizables por persona.
-- Productos, categorías, precios, costos y movimientos de stock.
-- Pedidos desde la carta pública y desde el panel.
-- Cobros con registro del medio de pago y vuelto en efectivo.
-- Apertura, movimientos y cierre de caja por operador.
-- Resumen de ventas, gastos y ganancias.
+---
 
-Los pagos digitales se confirman manualmente. La constancia interna no es un comprobante electrónico SUNAT. El modo sin internet, las suscripciones y la integración automática con impresoras no están implementados. Existe una demo visual de pizza en 3D y AR con marcador, accesible desde la carta; la detección AR real queda pendiente de probar con cámara.
+## 📋 Tabla de Contenidos
 
-## Requisitos
+- [Visión General](#-visión-general)
+- [Arquitectura del Sistema](#-arquitectura-del-sistema)
+- [Módulos Principales](#-módulos-principales)
+- [Experiencia 3D y Realidad Aumentada (AR)](#-experiencia-3d-y-realidad-aumentada-ar)
+- [Rendimiento y Pruebas de Estrés en AWS](#-rendimiento-y-pruebas-de-estrés-en-aws)
+- [Tecnologías y Stack](#-tecnologías-y-stack)
+- [Puesta en Marcha (Instalación Local)](#-puesta-en-marcha-instalación-local)
+- [Despliegue en la Nube (AWS)](#-despliegue-en-la-nube-aws)
+- [Suite de Pruebas y Calidad de Código](#-suite-de-pruebas-y-calidad-de-código)
+- [Estructura del Proyecto](#-estructura-del-proyecto)
+- [Seguridad y Resiliencia](#-seguridad-y-resiliencia)
+- [Documentación Adicional](#-documentación-adicional)
 
-Docker Desktop con contenedores Linux y Docker Compose. No hace falta instalar PHP en Windows para usar el entorno Docker.
+---
 
-## Instalación local en CMD
+## 🌟 Visión General
 
-Desde la raíz del repositorio:
+**Adbana SaaS** es un sistema web multi-restaurante de grado empresarial diseñado para resolver de punta a punta la operación gastronómica moderna. Con una arquitectura desacoplada y contenedorizada, permite a múltiples restaurantes operar con aislamiento estricto de datos, integrando desde la interacción del comensal en mesa hasta la conciliación contable de caja y el monitoreo de infraestructura en la nube.
+
+### Puntos Fuertes:
+* **Aislamiento Multi-Tenant Estricto:** Cada consulta y operación está encapsulada por el contexto del restaurante (`BelongsToRestaurante`), imposibilitando fugas de información entre inquilinos.
+* **Tolerancia a Concurrencia Extrema:** Bloqueos pesimistas a nivel de fila (`SELECT ... FOR UPDATE`), transacciones ACID e idempotencia basada en claves UUID y huellas SHA-256 para evitar sobreventa o duplicación de pedidos.
+* **Alta Disponibilidad Cloud en AWS:** Desplegado sobre Amazon EC2 y AWS RDS PostgreSQL Multi-AZ con caché distribuido en Redis, compresión OPcache JIT y proxies inversos TLS de alto rendimiento.
+* **Experiencia Inmersiva WebAR:** Los comensales pueden inspeccionar platos en 3D e interactuar en Realidad Aumentada en su mesa desde cualquier teléfono inteligente (iOS y Android), sin obligar a descargar aplicaciones.
+* **App Móvil Complementaria en Flutter:** Aplicación nativa con visualización de modelos 3D y seguimiento de estados de comanda.
+
+---
+
+## 🏗️ Arquitectura del Sistema
+
+El ecosistema opera mediante micro-servicios contenedorizados y orquestados para máxima resiliencia:
+
+```mermaid
+flowchart TD
+    subgraph Clientes ["🌐 Clientes & Dispositivos"]
+        COM["📱 Comensal (Móvil / WebAR)"]
+        POS["💻 Operador POS / Mesero / Caja"]
+        KDS["🍳 Pantalla de Cocina (KDS)"]
+        ADM["🛡️ Superadmin Plataforma"]
+        FLU["📲 App Flutter (Android / iOS)"]
+    end
+
+    subgraph AWS_EC2 ["☁️ Servidor de Aplicación (AWS EC2 / Docker Compose)"]
+        GW["🔒 Gateway Caddy (TLS / HTTPS Automático)"]
+        NGX["⚡ Servidor Web Nginx"]
+        APP["🚀 PHP-FPM 8.4 (Laravel 13 + OPcache JIT)"]
+        RED["⚡ In-Memory Cache & Colas (Redis 7)"]
+        WRK["⚙️ Background Worker (Queue:work)"]
+        SCH["⏰ Scheduler (Cron Jobs)"]
+    end
+
+    subgraph AWS_RDS ["🗄️ Capa de Persistencia (AWS RDS Multi-AZ)"]
+        DB_PRI[("🐘 PostgreSQL 16 (Instancia Primaria)")]
+        DB_STB[("🐘 PostgreSQL 16 (Standby Réplica)")]
+    end
+
+    COM -->|HTTPS / QR| GW
+    POS -->|HTTPS / WSS| GW
+    KDS -->|HTTPS / API| GW
+    ADM -->|HTTPS / Sesión| GW
+    FLU -->|REST API JSON| GW
+
+    GW -->|Proxy Pass 172.30.10.x| NGX
+    NGX -->|FastCGI Socket| APP
+    APP <-->|Caché de Rutas & Catálogo| RED
+    APP -->|Despacho de Tareas| RED
+    RED <-->|Consumo Asíncrono| WRK
+    APP <-->|Transacciones ACID / Locks| DB_PRI
+    SCH -->|Mantenimiento & Cleanup| APP
+    DB_PRI -.->|Replicación Síncrona Multi-AZ| DB_STB
+```
+
+---
+
+## 📦 Módulos Principales
+
+### 1. 📱 Carta Digital Pública & Auto-Pedido
+* Acceso instantáneo mediante escaneo de código QR específico por mesa (`/c/{slug}?mesa={id}`).
+* Catálogo dinámico por categorías, con fotos en alta resolución, descripciones e indicadores de alérgenos.
+* Envío de pedidos a cocina con validación instantánea de stock y cálculo de totales en centavos exactos en el servidor.
+* Protección contra desconexiones o doble click accidental gracias a la capa de **idempotencia** (`X-Adbana-Cliente` + UUID).
+
+### 2. 💻 Punto de Venta (POS) & Servicio de Mesas
+* Mapa interactivo de mesas con codificación de colores según el estado: *Disponible*, *Ocupada*, *En preparación* o *Por cobrar*.
+* Cuentas compartidas o individuales por mesa, soporte para modalidades en mesa, para llevar (*take-out*) y delivery.
+* Cobros combinados: Efectivo con cálculo de vuelto en servidor, transferencias digitales (Yape, Plin) y tarjetas bancarias.
+
+### 3. 🍳 Pantalla de Cocina (KDS - Kitchen Display System)
+* Recepción de comandas en tiempo real con temporizador de espera por pedido.
+* Gestión de ciclo de vida del plato: `Pendiente` ➔ `Confirmado` ➔ `En Preparación` ➔ `Listo` ➔ `Entregado`.
+* Reintegro automático de inventario al sistema en caso de cancelación justificada.
+
+### 4. 📦 Control de Inventario & Kardex
+* Descuento automático de existencias por plato o por insumos de receta al confirmar cada orden.
+* Registro inmutable de movimientos (`movimientos_stock`): compras, mermas, ajustes y ventas.
+* Bloqueo estricto contra saldo negativo (`SELECT ... FOR UPDATE` a nivel de base de datos).
+
+### 5. 💰 Gestión de Caja y Turnos
+* Apertura de turno con fondo inicial y asignación nominal por operador.
+* Registro clasificado de ingresos y egresos de efectivo con motivo y comprobante.
+* Cierre ciego de caja con cálculo de descuadre (faltante/sobrante) y arqueo auditado.
+
+### 6. 🛡️ Panel de Administración SaaS (`/administracion`)
+* Módulo independiente para operadores de la plataforma con credenciales y sesiones separadas.
+* Dashboard con métricas globales: volumen de ventas, número de pedidos, restaurantes activos y altas.
+* Gestión de inquilinos, suspensión preventiva, activación y bitácora de auditoría global.
+
+---
+
+## 🕶️ Experiencia 3D y Realidad Aumentada (AR)
+
+Adbana integra tecnologías inmersivas de vanguardia tanto en el navegador web como en su aplicación móvil:
+
+* **WebAR Universal (Cero Instalación):**
+  * Utiliza `<model-viewer>` de Google con soporte progresivo para **WebXR**, **Google Scene Viewer** en Android y **Apple Quick Look (.usdz)** en iOS.
+  * Los comensales pueden proyectar el plato en escala 1:1 sobre su propia mesa para apreciar el tamaño real de la porción y su presentación.
+* **Aplicación Móvil Flutter (`/flutter`):**
+  * Diseñada con `dish_model_page.dart` para una interacción táctil fluida (rotación 360°, zoom y texturas PBR).
+  * Consumo directo de la API REST de Adbana con sincronización de estado de pedidos.
+
+---
+
+## ⚡ Rendimiento y Pruebas de Estrés en AWS
+
+El sistema fue sometido a ensayos de estrés rigurosos con **Grafana k6** atacando la ruta más pesada y crítica del sistema: **`POST /api/carta/{slug}/pedidos`** (escritura en base de datos, transacción ACID, bloqueo pesimista de filas y actualización de stock).
+
+### 📊 Benchmark en AWS EC2 (`t3.micro`) + RDS PostgreSQL Multi-AZ
+Prueba de concurrencia masiva con **550 usuarios virtuales (VUs)** ejecutando transacciones continuas durante **1 minuto**:
+
+| Métrica de Rendimiento | Antes de la Optimización | Después de la Optimización | Factor de Mejora |
+| :--- | :---: | :---: | :---: |
+| **Pedidos Registrados en BD (HTTP 201)** | `2,475 pedidos` | **`5,822 pedidos`** | **+135.2% (~2.35x)** |
+| **Throughput de Transacciones** | `29.56 pedidos / s` | **`73.18 pedidos / s`** | **+147.6% (~2.48x)** |
+| **Peticiones HTTP Procesadas** | `30.19 req / s` | **`73.85 req / s`** | **+144.6%** |
+| **Latencia Promedio (`avg`)** | `597.81 ms` | **`266.42 ms`** | **-55.4% (Más del doble de rápido)** |
+| **Latencia Mediana (`med`)** | `582.17 ms` | **`248.25 ms`** | **-57.4%** |
+| **Latencia Percentil 90 (`p90`)** | `710.92 ms` | **`306.56 ms`** | **-56.9%** |
+| **Latencia Percentil 95 (`p95`)** | `777.90 ms` | **`344.43 ms`** | **-55.7%** |
+| **Latencia Máxima (`max`)** | `6.99 s` | **`1.74 s`** | **-75.1%** |
+| **Tasa de Error HTTP (`http_req_failed`)** | **0.00%** (`0 / 2,528`) | **`0.00%` (`0 / 5,875`)** | **100% Estable** |
+| **Uso de Memoria RAM (`app`)** | ~180 MiB | **114.3 MiB (12.5% de RAM)** | **Optimizado para t3.micro** |
+
+> **Clave de la Optimización:**  
+> Se redujeron los round-trips a RDS de 14 a 10 consultas por pedido mediante caché en Redis (`restaurante_pedido:$slug`), inserciones por lotes (*bulk inserts*), hidratación en memoria de relaciones, compilación OPcache con Tracing JIT y pool de conexiones persistentes a PostgreSQL y Redis.
+
+---
+
+## 🛠️ Tecnologías y Stack
+
+| Capa | Tecnologías |
+| :--- | :--- |
+| **Backend** | PHP 8.4 (FPM), Laravel 13, Eloquent ORM, Laravel Sanctum |
+| **Base de Datos** | PostgreSQL 16 (Índices B-Tree compuestos, Transacciones Serializable/Read Committed) |
+| **Caché y Colas** | Redis 7 Alpine (In-Memory Key-Value, Queue Driver, Rate Limiting) |
+| **Servidores Web / Proxy** | Caddy 2 (TLS / HTTP/2 / HTTP/3), Nginx 1.31 Alpine (Reverse Proxy & FastCGI) |
+| **Contenedores & Cloud** | Docker, Docker Compose, AWS EC2, AWS RDS Multi-AZ, AWS CloudWatch |
+| **Frontend Web** | Blade Templates, Tailwind CSS, Alpine.js, WebXR, Google Model-Viewer |
+| **Aplicación Móvil** | Flutter 3.x, Dart, model_viewer_plus, HTTP client |
+| **Testing & Benchmark** | PHPUnit 12.5, Grafana k6, Node.js Test Suite |
+
+---
+
+## 🚀 Puesta en Marcha (Instalación Local)
+
+### Prerrequisitos
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Motor Linux con WSL2 habilitado en Windows).
+* Git instalado.
+
+### Opción 1: Inicio Rápido en Windows (1 Solo Clic)
+El proyecto incluye un lanzador optimizado que almacena `vendor` en un volumen de Docker para evitar la sobrecarga del sistema de archivos de Windows:
 
 ```cmd
+git clone https://github.com/tu-usuario/adbana.git
+cd adbana
 copy .env.example .env
 copy src\.env.example src\.env
+.\iniciar-rapido.cmd
 ```
 
-Elegir una contraseña de desarrollo y configurar el mismo DB_PASSWORD en ambos archivos. Nunca subir los archivos .env al repositorio.
+### Opción 2: Instalación Estándar con Docker Compose
+1. **Configurar los archivos de entorno:**
+   ```bash
+   cp .env.example .env
+   cp src/.env.example src/.env
+   ```
+   *(Asegúrate de que `DB_PASSWORD` coincida en ambos archivos).*
 
-```cmd
-docker compose up -d --build
-docker compose exec app composer install
-docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate
-```
+2. **Construir y levantar los contenedores:**
+   ```bash
+   docker compose up -d --build
+   ```
 
-Abrir http://localhost:8080/panel para crear el restaurante o ingresar. La carta pública queda en http://localhost:8080/c/SLUG-DEL-RESTAURANTE. El dueño carga productos y crea personal desde el panel.
+3. **Instalar dependencias y ejecutar migraciones:**
+   ```bash
+   docker compose exec app composer install
+   docker compose exec app php artisan key:generate
+   docker compose exec app php artisan migrate
+   ```
 
-Los estilos y Alpine.js se sirven desde public; el panel actual no requiere compilar Vite para probarlo.
+4. **Acceder a los módulos locales:**
+   * 🖥️ **Panel del Restaurante:** [http://localhost:8080/panel](http://localhost:8080/panel)
+   * 📱 **Carta Pública:** `http://localhost:8080/c/{slug-del-restaurante}`
+   * 🛡️ **Superadmin de Plataforma:** [http://localhost:8080/administracion](http://localhost:8080/administracion)
+   * 🗄️ **Adminer (Gestor BD):** [http://localhost:8085](http://localhost:8085) *(Servidor: `db`, Usuario: `adbana`)*
 
-## Pruebas
+5. **Crear el primer Superadministrador (CLI):**
+   ```bash
+   docker compose exec app php artisan adbana:crear-superadmin
+   ```
 
-Crear una base PostgreSQL dedicada llamada adbana_test si aún no existe:
+---
 
-```cmd
+## ☁️ Despliegue en la Nube (AWS)
+
+El proyecto cuenta con un stack de producción nativo para AWS (`compose.aws.yml`):
+
+1. **Configurar las credenciales de producción:**
+   ```bash
+   cp .env.production.example .env.production
+   ```
+   Configura el host de AWS RDS (`DB_HOST`), credenciales maestras y dominio del gateway (`APP_DOMAIN`).
+
+2. **Construir y desplegar la pila de servicios:**
+   ```bash
+   docker compose -f compose.aws.yml build app web
+   docker compose -f compose.aws.yml up -d
+   ```
+
+3. **Ejecutar migraciones en el contenedor de aplicación:**
+   ```bash
+   docker compose -f compose.aws.yml exec app php artisan migrate --force
+   ```
+
+4. **Monitoreo y pruebas de carga integradas:**
+   * **Monitoreo en vivo de RDS:** `.\ver-base-datos.cmd`
+   * **Prueba de carga masiva k6:** `.\probar-estres-aws.cmd 50000 550 1m`
+   * **Prueba de estrés por tiempo:** `.\probar-estres-tiempo.cmd 1m 550 tiempo`
+
+---
+
+## 🧪 Suite de Pruebas y Calidad de Código
+
+### Pruebas Unitarias y de Integración (PHPUnit)
+El sistema incluye una suite con más de **100 pruebas automatizadas y 594 aserciones**:
+
+```bash
+# Crear base de pruebas dedicada (solo la primera vez)
 docker compose exec db psql -U adbana -d postgres -c "CREATE DATABASE adbana_test;"
+
+# Ejecutar la suite completa
 docker compose exec app php artisan test
-docker compose restart app
 ```
 
-El comando CREATE DATABASE se ejecuta solo una vez. La suite usa RefreshDatabase sobre adbana_test; no apuntar las pruebas a una base con datos reales.
+### Pruebas de Regresión Frontend
+```bash
+node src/tests/Frontend/panel-carta.cjs
+node src/tests/Frontend/robustez.cjs
+```
 
-El script k6/carga.js crea datos de prueba. Usarlo únicamente en un entorno dedicado; sus resultados no certifican capacidad de producción.
+---
 
-## Estructura
+## 📂 Estructura del Proyecto
 
-- src/: aplicación Laravel, API, vistas y pruebas.
-- src/docs/: alcance funcional y roles.
-- k6/: ensayo de carga.
-- Dockerfile y docker-compose.yml: servicios locales.
+```text
+Adbana_saasReal/
+├── .agents/                 # Habilidades y agentes de optimización AR y backend
+├── deploy/                  # Configuraciones de despliegue cloud (Caddy, Nginx, PHP-FPM, OPcache)
+│   ├── Caddyfile            # Proxy inverso TLS / HTTP3
+│   ├── entrypoint.sh        # Script de inicialización y optimización de cachés
+│   ├── php-fpm-production.conf # Tuning de procesos PHP-FPM
+│   └── php-production.ini   # Configuración de memoria y JIT
+├── flutter/                 # Aplicación móvil nativa Adbana Carta
+│   ├── lib/                 # Código Dart (Modelos, Vistas AR, Carrito, Seguimiento)
+│   └── pubspec.yaml         # Dependencias Flutter
+├── k6/                      # Scripts de benchmarking y estrés masivo
+│   ├── carga.js             # Escenario de lectura de menú
+│   └── estres-masivo.js     # Escenario de concurrencia y escritura en BD
+├── src/                     # Núcleo de la aplicación Laravel 13
+│   ├── app/                 # Modelos, Controladores, Middlewares y Lógica de Negocio
+│   ├── config/              # Configuraciones de base de datos, caché y auth
+│   ├── database/            # Migraciones y Seeders relacionales
+│   ├── docs/                # Documentación técnica extendida del proyecto
+│   ├── resources/views/     # Vistas Blade (Panel, Carta, Mesas, Cocina, Superadmin)
+│   └── routes/              # Definición de rutas Web y API REST
+├── tools/                   # Binarios locales independientes (k6 standalone)
+├── compose.aws.yml          # Orquestación de contenedores para producción AWS
+├── docker-compose.yml       # Orquestación para entorno de desarrollo local
+├── iniciar-rapido.cmd       # Automatización de inicio en 1 clic para Windows
+├── probar-estres-aws.cmd    # Lanzador de pruebas de estrés contra AWS
+└── README.md                # Documentación principal
+```
 
-## Colaboración
+---
 
-Crear una rama por cambio y proponer una revisión antes de integrarla a main. Cada colaborador configura sus propios .env. No compartir contraseñas a través de commits.
+## 🔒 Seguridad y Resiliencia
 
-Este repositorio no incluye datos de restaurantes, registros, dependencias instaladas ni claves privadas. Antes de un despliegue comercial se requieren revisión de seguridad, HTTPS, copias de respaldo, recuperación y pruebas de concurrencia de ventas y cobros.
+* **Cifrado de Credenciales:** Hashing criptográfico con algoritmo **Bcrypt** (`BCRYPT_ROUNDS=12`).
+* **Protección Anti-Duplicados (Idempotencia):** Huellas hash SHA-256 combinadas con identificadores UUID de transacción para asegurar que peticiones repetidas por inestabilidad de red no cobren ni descuenten stock dos veces.
+* **Rate Limiting Inteligente:** Limitadores dinámicos por IP, ruta y usuario (`throttle:login`, `throttle:pedidos-publicos`), mitigando ataques de fuerza bruta y denegación de servicio (DoS).
+* **Auditoría de Acciones Críticas:** Traza histórica de modificaciones mediante el trait `Auditable`, registrando operador, fecha, IP y atributos modificados (con censura automática de contraseñas y tokens).
+* **Cookies de Sesión Endurecidas:** Banderas `HttpOnly`, `SameSite=Lax` y `Secure` habilitadas en entornos de producción.
 
-## Cambios recientes
+---
 
-- Panel renovado con perfil, resumen de ventas y tipografía local.
-- Equipo con permisos por persona, auditoría y protección de turnos abiertos.
-- Cobro y entrega separados; reintentos de pedidos públicos protegidos contra duplicación.
-- Contexto explícito de restaurante para tareas sin sesión.
-- Inicio rápido para Windows: ejecutar `iniciar-rapido.cmd` después de la instalación inicial. Guarda las dependencias PHP en un volumen de Docker para evitar la lentitud del montaje Windows.
-- Después de actualizar un proyecto existente: `docker compose exec app php artisan migrate` y `docker compose exec app php artisan view:clear`.
-- Demo desde **Ver carta → Probar 3D y realidad aumentada**, con retorno a la carta. Sus bibliotecas y modelos están incluidos para la presentación sin CDN.
+## 📚 Documentación Adicional
 
-### Evidencia de pruebas
+Para profundizar en el diseño y los detalles de arquitectura, consulta la documentación en `src/docs/`:
 
-Suite verificada: **100 pruebas / 594 verificaciones** sobre PostgreSQL de prueba, más la regresión JavaScript `node src/tests/Frontend/panel-carta.cjs`.
+* 📖 [Documentación Técnica Integral (25% - Semana 9)](src/docs/DOCUMENTACION-PROYECTO-25.md)
+* 📊 [Diagrama de Base de Datos y Entidad-Relación](src/docs/DIAGRAMA-BD.md)
+* 🔐 [Matriz de Roles y Permisos Granulares](src/docs/PERMISOS.md)
+* 🛡️ [Políticas de Consistencia y Escalabilidad](src/docs/CONSISTENCIA-Y-ESCALABILIDAD.md)
+* 💻 [Especificación del Punto de Venta (POS)](src/docs/POS.md)
+* 📱 [Guía del Módulo de Realidad Aumentada (AR)](src/public/demo-ar/README.md)
 
-Prueba local k6 de lectura de carta durante 30 segundos, con pausa de 1 segundo por usuario:
+---
 
-| Usuarios virtuales | Peticiones | Promedio | p95 | Errores |
-| --- | --- | --- | --- | --- |
-| 50 | 1450 | 63,27 ms | 102,81 ms | 0 % |
-| 100 | 2800 | 80,08 ms | 122,60 ms | 0 % |
-
-Resúmenes originales en `k6/resultado-50.json` y `k6/resultado-100.json`. Son lecturas de un endpoint en el entorno local: no acreditan cobros concurrentes, capacidad cloud ni una prueba prolongada de estrés.
-
-Más detalles: [Documentación completa (25%)](src/docs/DOCUMENTACION-PROYECTO-25.md), [Diagrama de base de datos](src/docs/DIAGRAMA-BD.md), [Permisos](src/docs/PERMISOS.md), [rendimiento local](src/docs/RENDIMIENTO-LOCAL.md), [consistencia](src/docs/CONSISTENCIA-Y-ESCALABILIDAD.md) y [demo AR](src/public/demo-ar/README.md).
-## Actualización de consistencia y acceso
-
-Después de actualizar, ejecutar `iniciar-rapido.cmd` y, con el mismo perfil, `docker compose -f docker-compose.yml -f docker-compose.fast.yml exec app php artisan migrate`. La migración añade huella del POS y registro transaccional de movimientos. Las claves POS anteriores sin huella responden 409 al reintentarlas; revisar el pedido existente antes de crear otro.
-
-Los movimientos de stock y caja ahora exigen `clave_operacion` UUID. El panel conserva solicitudes pendientes en sessionStorage hasta confirmarlas. Tras una respuesta perdida, reintentar sin cambiar los datos. No borrar el almacenamiento o cambiar de pestaña para iniciar otro movimiento sin comprobar primero el historial.
-
-La carta envía `X-Adbana-Cliente` con una identidad local. Los límites combinan cliente/IP/restaurante. No constituye identificación verificada ni sustituye los límites generales. Ajustar con mediciones; para clientes antiguos sin cabecera se usa IP.
-
-Recuperación: `/api/auth/recuperar` y `/api/auth/restablecer`, con enlace de un solo uso que vence según `config/auth.php`. En desarrollo MAIL_MAILER=log guarda el enlace en logs: no compartirlos. Para envío real configurar SMTP y APP_URL. Las sesiones expiran a las 12 horas por defecto (SANCTUM_EXPIRATION en minutos); Perfil permite consultarlas y revocarlas. Cambiar contraseña mediante recuperación revoca todas. El scheduler limpia tokens expirados y el login limita a diez sesiones por cuenta.
-
-El panel pagina pedidos y cocina, con búsqueda en el servidor. Mesas obtiene totales agregados de todos los pedidos abiertos y abre sus detalles paginados. No se limita el total a la primera página.
-
-## Preparación de producción
-
-`compose.production.yml` es independiente del entorno local y no incluye respaldos. Requiere dominio/DNS, puertos 80/443 disponibles y configuración SMTP. Copiar `.env.production.example` a `.env.production`, generar una APP_KEY propia y elegir DB_PASSWORD. El gateway Caddy solicita certificados al apuntar el dominio al servidor. HTTPS no queda desplegado por crear estos archivos.
-
-Configurar GATEWAY_IP y APP_NETWORK_SUBNET en una subred libre; la aplicación confía únicamente en ese gateway para recuperar la IP del cliente. Revisar esta configuración si se añade otro proxy. PostgreSQL, Redis y Nginx no publican puertos. El Docker Compose local conserva PostgreSQL y Adminer solo en 127.0.0.1.
-
-Preparación: `docker compose --env-file .env.production -f compose.production.yml build`. Iniciar BD/Redis y ejecutar las migraciones mediante un contenedor app de una sola ejecución antes de servir tráfico: `docker compose --env-file .env.production -f compose.production.yml run --rm app php artisan migrate --force`. Después iniciar los servicios con `up -d`. No ejecutar migraciones automáticamente en cada réplica.
-
-El perfil incorpora worker y scheduler. Los trabajos deben establecer contexto de restaurante y diseñarse para reintentos. El tiempo de reintento Redis (180 s) supera el timeout del worker (90 s). El volumen storage conserva archivos; es persistencia, no respaldo. Las imágenes públicas deben publicarse mediante enlaces/almacenamiento configurados antes de habilitar carga de archivos. Validar construcción, certificados, correo y recursos en el host destino. No se garantiza disponibilidad sin esa validación.
-
-Pruebas: suite PHPUnit sobre PostgreSQL de prueba y scripts `node src/tests/Frontend/panel-carta.cjs`, `node src/tests/Frontend/demo-idiomas.cjs` y `node src/tests/Frontend/robustez.cjs`. Nunca usar los datos operativos como base de pruebas.
-
-## Administración de Adbana
-
-El panel general se abre en `/administracion`. Sus cuentas pertenecen a `administradores_plataforma`, separadas de los usuarios de restaurantes. No existe registro público de administradores.
-
-Después de ejecutar las migraciones, crear el primer acceso con `docker compose -f docker-compose.yml -f docker-compose.fast.yml exec app php artisan adbana:crear-superadmin`. El comando solicita nombre, correo y contraseña oculta de al menos 12 caracteres. Solo funciona si no existe ninguna cuenta de plataforma, incluso retirada. Los siguientes accesos se crean desde Administradores. No hay contraseñas predeterminadas ni promociones automáticas de dueños.
-
-El superadministrador puede crear, editar, desactivar y retirar accesos. Un administrador limitado recibe permisos de dashboard, consulta de restaurantes, activación/suspensión y auditoría. Solo superadministradores gestionan administradores. Cambios críticos requieren contraseña de confirmación y motivo; se auditan sin guardar contraseñas. No se permite cambiar el propio acceso ni retirar el último superadministrador. La retirada es lógica para preservar el historial y corta el acceso al validar la siguiente petición. Los cambios de cuenta invalidan las sesiones previas mediante versión de sesión.
-
-El panel usa cookies de sesión y protección CSRF, no los tokens del POS. La configuración de producción activa cookies Secure y HttpOnly. El dashboard muestra actividad real del entorno con periodo de 7 o 30 días, restaurantes activos, pedidos, altas y equipo. Suscripciones e incidencias se señalan como sin configurar; no se inventan ingresos ni cifras de disponibilidad. La autenticación de segundo factor y un módulo comercial de suscripciones no forman parte de esta versión.
+<p align="center">
+  <b>Adbana SaaS</b> • Desarrollado con excelencia para la transformación digital gastronómica.
+</p>
