@@ -6,14 +6,16 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
-    <link rel="stylesheet" href="/css/carta-visual.css?v=20261111m1">
+    <link rel="stylesheet" href="/css/carta-visual.css?v=20261114qr1">
     <script>
         window.ADBANA_CONFIG = {
             arPublicUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/')),
             arPublicBaseUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/'))
         };
     </script>
-    <script src="/js/carta.js?config=20261108&v=20261111m1"></script>
+    <script src="/js/vendor/jsQR.js?v=20261114qr1"></script>
+    <script type="module" src="/js/ar-engine.js?v=20261114qr1"></script>
+    <script src="/js/carta.js?config=20261114&v=20261114qr2"></script>
     <script defer src="/js/alpine.min.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 <link rel="stylesheet" href="/css/carga.css?v=20261031d"></head>
@@ -147,14 +149,21 @@
                         </div>
 
                         <div class="acciones-plato">
-                            <button type="button" class="btn" @click="$el.closest('.plato').querySelector('dialog.carta-detalle').showModal()">Ver detalles</button>
+                            <button type="button" class="btn" @click="avisoFallback3D = ''; $el.closest('.plato').querySelector('dialog.carta-detalle').showModal()">Ver detalles</button>
                             <button type="button" class="btn btn-ar-accion" x-show="p.modelo_3d" @click="abrirAR(p, document.getElementById('mv-' + p.id))">
                                 📱 Ver en tu mesa (AR)
                             </button>
                         </div>
 
-                        <dialog class="carta-detalle" @click.self="$el.close()">
+                        <dialog class="carta-detalle" :id="'dlg-detalle-' + p.id" @click.self="$el.close()">
                             <form method="dialog"><button class="btn" aria-label="Cerrar ficha">Cerrar</button></form>
+                            <div class="ar-fallback-banner" x-show="avisoFallback3D" x-cloak role="alert">
+                                <p x-text="avisoFallback3D"></p>
+                                <small>👆 Puedes girar y hacer zoom al plato 3D aquí mismo con el dedo o mouse, o abrir la carta en tu celular.</small>
+                                <button type="button" class="btn-sec btn-qr-cel" @click="abrirModalQrEscritorio(p)">
+                                    📲 Escanear QR con otro celular
+                                </button>
+                            </div>
                             <template x-if="p.modelo_3d">
                                 <div class="detalle-3d-wrap">
                                     <span class="badge-3d" aria-hidden="true">✨ Vista 3D 360°</span>
@@ -187,7 +196,7 @@
                                     >
                                         <button slot="ar-button" style="display:none" aria-hidden="true"></button>
                                         <div class="ar-hud-escaneo" @beforexrselect.prevent>
-                                            📲 Apunta al borde o centro de la mesa e inclina ligeramente el celular para fijar el plato
+                                            📲 Apunta al código QR de la mesa para fijar el plato al instante
                                         </div>
                                         <div class="ar-hud-tracking-perdido" x-show="trackingPerdido" @beforexrselect.prevent>
                                             <p>⚠️ Muy cerca de la superficie — aléjate unos centímetros mirando a la mesa para recuperar el plato</p>
@@ -210,13 +219,13 @@
                                         </div>
                                     </model-viewer>
                                     <p class="ar-guia-tip">
-                                        💡 <strong>Tip de anclaje:</strong> Apunta a tu mesa. Si es muy lisa o de vidrio, enfoca cerca del borde o de un objeto (servilletero, vaso o individual) para que el sensor fije el plato al instante.
+                                        💡 <strong>Anclaje instantáneo con QR:</strong> Apunta la cámara al código QR de tu mesa para proyectar el plato en 3D al instante (&lt; 0.5 s), sin buscar bordes ni superficies.
                                     </p>
                                     <button type="button" class="btn carta-ar" @click="abrirAR(p, document.getElementById('mv-modal-' + p.id))">
-                                        📱 Ver en tu mesa (AR)
+                                        📷 Ver en tu mesa (AR con QR)
                                     </button>
                                     <button type="button" class="btn-sec carta-ar-nativo" @click="abrirARNativo(p, document.getElementById('mv-modal-' + p.id))">
-                                        🚀 Abrir en Google AR Nativo
+                                        🚀 Abrir en Google AR / Quick Look
                                     </button>
                                 </div>
                             </template>
@@ -279,15 +288,21 @@
             </label>
 
             <label class="campo" x-show="form.tipo === 'mesa'"><span x-text="t('num_mesa')">Número de mesa</span>
-                <template x-if="mesas && mesas.length > 0">
+                <template x-if="datosMesaNombre">
+                    <div class="mesa-qr-bloqueada" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid rgba(255,149,89,0.45);border-radius:10px;background:rgba(255,149,89,0.08);font-weight:600;">
+                        <span>📍 <span x-text="datosMesaNombre"></span></span>
+                        <small style="opacity:0.8;font-weight:500;" x-text="t('mesa_qr_asignada')"></small>
+                    </div>
+                </template>
+                <template x-if="!datosMesaNombre && mesas && mesas.length > 0">
                     <select x-model="form.mesa">
                         <option value="" disabled x-text="t('sel_mesa')">-- Selecciona tu mesa --</option>
                         <template x-for="m in mesas" :key="m.id">
-                            <option :value="m.nombre" :disabled="m.ocupada && (!datosMesaNombre || m.nombre !== datosMesaNombre)" x-text="m.nombre + (m.ocupada ? ' (' + t('mesa_ocupada') + ')' : ' (' + t('mesa_disponible') + ')')"></option>
+                            <option :value="m.nombre" :disabled="m.ocupada" x-text="m.nombre + (m.ocupada ? ' (' + t('mesa_ocupada') + ')' : ' (' + t('mesa_disponible') + ')')"></option>
                         </template>
                     </select>
                 </template>
-                <template x-if="!mesas || mesas.length === 0">
+                <template x-if="!datosMesaNombre && (!mesas || mesas.length === 0)">
                     <input type="text" x-model="form.mesa" maxlength="20" placeholder="Ej. Mesa 01">
                 </template>
             </label>

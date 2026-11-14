@@ -9,6 +9,8 @@ auth.json
 
 # Dependencias y archivos generados
 **/vendor/
+!/src/public/js/vendor/
+!/src/public/demo-ar/vendor/
 **/node_modules/
 /src/public/build/
 /src/public/hot

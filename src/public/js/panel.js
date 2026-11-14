@@ -1283,11 +1283,13 @@ document.addEventListener('alpine:init', () => {
                 w.opener=null;
                 const url=new URL('/c/'+this.user.restaurante.slug,window.location.origin);url.searchParams.set('mesa',mesa.codigo);
                 const qr=qrcode(0,'M');qr.addData(url.href);qr.make();
+                const card=w.document.createElement('div');card.className='qr-card';
                 const title=w.document.createElement('h1');title.textContent=this.user.restaurante.nombre;
                 const mesaTitle=w.document.createElement('h2');mesaTitle.textContent=mesa.nombre;
-                const drawing=w.document.createElement('div');drawing.innerHTML=qr.createSvgTag({cellSize:6,margin:24});
-                const instructions=w.document.createElement('p');instructions.textContent='Escanea para ver nuestra carta';
-                const style=w.document.createElement('style');style.textContent='body{font-family:Arial,sans-serif;text-align:center;padding:32px;color:#111}svg{max-width:90%;height:auto}';w.document.head.append(style);w.document.body.append(title,mesaTitle,drawing,instructions);w.document.title='Carta · '+mesa.nombre;w.focus();setTimeout(()=>w.print(),300);
+                const drawing=w.document.createElement('div');drawing.className='qr-frame';drawing.innerHTML=qr.createSvgTag({cellSize:6,margin:28});
+                const instructions=w.document.createElement('p');instructions.className='qr-main-tip';instructions.textContent='Escanea para pedir y ver platos en AR';
+                const subtip=w.document.createElement('small');subtip.className='qr-sub-tip';subtip.textContent='Apunta tu cámara a este QR desde la carta para proyectar los platos 3D en tu mesa';
+                const style=w.document.createElement('style');style.textContent='body{font-family:Arial,sans-serif;text-align:center;padding:24px;color:#111;background:#fff}.qr-card{display:inline-block;max-width:360px;padding:24px 28px;border:2px solid #111;border-radius:18px;background:#fff}h1{margin:0 0 6px;font-size:22px}h2{margin:0 0 14px;font-size:18px;color:#c2410c}.qr-frame{display:inline-block;background:#fff;padding:10px;border:3px solid #111;border-radius:12px}svg{display:block;max-width:100%;height:auto}.qr-main-tip{margin:14px 0 4px;font-size:15px;font-weight:700;color:#111}.qr-sub-tip{display:block;font-size:12px;color:#444;line-height:1.35}';w.document.head.append(style);card.append(title,mesaTitle,drawing,instructions,subtip);w.document.body.append(card);w.document.title='Carta · '+mesa.nombre;w.focus();setTimeout(()=>w.print(),300);
             },
             guardarMesa(mesa) {return this.accion(async()=>{await this.api('/configuracion/mesas/'+mesa.id,'PATCH',{nombre:mesa.nombre,zona:mesa.zona,activa:mesa.activa});this.aviso='Mesa actualizada.';});},
 

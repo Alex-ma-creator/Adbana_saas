@@ -30,6 +30,7 @@ const ADBANA_I18N_CARTA = {
         sel_mesa: '-- Selecciona tu mesa --',
         mesa_disponible: 'Disponible',
         mesa_ocupada: 'Ocupada',
+        mesa_qr_asignada: 'Asignada por QR',
         err_mesa_ocupada: 'La mesa seleccionada ya está ocupada.',
         dir_entrega: 'Dirección de entrega',
         telefono: 'Teléfono',
@@ -91,6 +92,7 @@ const ADBANA_I18N_CARTA = {
         sel_mesa: '-- Select your table --',
         mesa_disponible: 'Available',
         mesa_ocupada: 'Occupied',
+        mesa_qr_asignada: 'Assigned by QR',
         err_mesa_ocupada: 'The selected table is currently occupied.',
         dir_entrega: 'Delivery address',
         telefono: 'Phone',
@@ -152,6 +154,7 @@ const ADBANA_I18N_CARTA = {
         sel_mesa: '-- Selecione a sua mesa --',
         mesa_disponible: 'Disponível',
         mesa_ocupada: 'Ocupada',
+        mesa_qr_asignada: 'Atribuída por QR',
         err_mesa_ocupada: 'A mesa selecionada já está ocupada.',
         dir_entrega: 'Endereço de entrega',
         telefono: 'Telefone',
@@ -213,6 +216,7 @@ const ADBANA_I18N_CARTA = {
         sel_mesa: '-- Sélectionnez votre table --',
         mesa_disponible: 'Disponible',
         mesa_ocupada: 'Occupée',
+        mesa_qr_asignada: 'Attribuée par QR',
         err_mesa_ocupada: 'La table sélectionnée est déjà occupée.',
         dir_entrega: 'Adresse de livraison',
         telefono: 'Téléphone',
@@ -275,6 +279,7 @@ document.addEventListener('alpine:init', () => {
             modalAR: false,
             platoARSeleccionado: null,
             mensajeT5SinAR: false,
+            avisoFallback3D: '',
             avisoGuiaAR: false,
             ancladoFijo: false,
             trackingPerdido: false,
@@ -351,6 +356,8 @@ document.addEventListener('alpine:init', () => {
                         objetivoMetros = 0.14;
                     } else if (nombre.includes('brocheta') || nombre.includes('anticucho') || nombre.includes('parrilla')) {
                         objetivoMetros = 0.25;
+                    } else if (nombre.includes('torta') || nombre.includes('pastel') || nombre.includes('cake') || nombre.includes('fresa') || nombre.includes('chocolate') || nombre.includes('postre')) {
+                        objetivoMetros = 0.24;
                     }
 
                     // Solo ajustamos si el modelo subido viene fuera de escala métrica real (< 6cm o > 50cm)
@@ -497,18 +504,55 @@ document.addEventListener('alpine:init', () => {
                 return false;
             },
 
+            abrirFallbackVisor3D(p, mensaje) {
+                this.avisoFallback3D = mensaje || 'No se pudo acceder a la cámara. Explora el plato en nuestro visor 3D interactivo (gira y haz zoom con el dedo o mouse).';
+                this.platoARSeleccionado = p;
+                if (p && p.id !== undefined) {
+                    const dlg = document.getElementById('dlg-detalle-' + p.id);
+                    if (dlg && typeof dlg.showModal === 'function' && !dlg.open) {
+                        try {
+                            dlg.showModal();
+                            return;
+                        } catch (e) {}
+                    } else if (dlg && dlg.open) {
+                        return;
+                    }
+                }
+                const ua = navigator.userAgent || '';
+                const esMovil = /iPhone|iPad|iPod|Android/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                this.mensajeT5SinAR = esMovil;
+                this.modalAR = true;
+            },
+
+            abrirModalQrEscritorio(p) {
+                if (p && p.id !== undefined) {
+                    const dlg = document.getElementById('dlg-detalle-' + p.id);
+                    if (dlg && dlg.open && typeof dlg.close === 'function') {
+                        try { dlg.close(); } catch (e) {}
+                    }
+                }
+                this.platoARSeleccionado = p;
+                this.mensajeT5SinAR = false;
+                this.modalAR = true;
+            },
+
             async abrirAR(p, elViewer) {
                 if (this.redireccionarHttpsMovilSiNecesario()) return;
 
-                const ua = navigator.userAgent || '';
-                const esIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-                const esAndroid = /Android/i.test(ua);
-                const esMovil = esIOS || esAndroid;
-
                 this.mensajeT5SinAR = false;
+                this.avisoFallback3D = '';
                 this.trackingPerdido = false;
                 this.ancladoFijo = false;
 
+                // Motor principal universal: Anclaje AR instantáneo por Código QR de la mesa (WebRTC + jsQR + Three.js)
+                if (window.AdbanaQRAR && typeof window.AdbanaQRAR.iniciar === 'function') {
+                    await window.AdbanaQRAR.iniciar(p, (mensajeError) => {
+                        this.abrirFallbackVisor3D(p, mensajeError);
+                    });
+                    return;
+                }
+
+                // Fallback secundario si el módulo aún no cargó
                 if (elViewer && typeof elViewer.activateAR === 'function') {
                     this.visorARActivo = elViewer;
                     elViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
@@ -520,9 +564,10 @@ document.addEventListener('alpine:init', () => {
                     } catch (e) {}
                 }
 
-                this.platoARSeleccionado = p;
-                this.mensajeT5SinAR = esMovil;
-                this.modalAR = true;
+                this.abrirFallbackVisor3D(
+                    p,
+                    'Tu navegador no dispone de cámara para AR. Puedes explorar el plato en 3D interactivo aquí mismo.'
+                );
             },
 
             async abrirARNativo(p, elViewer) {
@@ -711,6 +756,9 @@ document.addEventListener('alpine:init', () => {
                 }
 
                 if (f.tipo === 'mesa') {
+                    if (this.datosMesaNombre) {
+                        f.mesa = this.datosMesaNombre;
+                    }
                     if (!f.mesa.trim()) {
                         faltan.push(this.t('val_mesa'));
                     } else if (this.mesas.length > 0) {
