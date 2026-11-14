@@ -36,11 +36,19 @@ class VerificarCorsEstricto
             );
 
             $schemeAndHttpHost = rtrim($request->getSchemeAndHttpHost(), '/');
-            if ($schemeAndHttpHost !== '' && !in_array('*', (array) config('cors.allowed_origins', []), true)) {
+            if ($schemeAndHttpHost !== '') {
                 $permitidos[] = $schemeAndHttpHost;
             }
+            if ($appUrl = rtrim((string) config('app.url'), '/')) {
+                $permitidos[] = $appUrl;
+            }
+            if ($appDomain = env('APP_DOMAIN')) {
+                $permitidos[] = 'https://' . rtrim($appDomain, '/');
+                $permitidos[] = 'http://' . rtrim($appDomain, '/');
+            }
+            $permitidos = array_values(array_unique(array_filter($permitidos)));
 
-            if (in_array('*', (array) config('cors.allowed_origins', []), true) || !in_array($origenNormalizado, $permitidos, true)) {
+            if (!in_array($origenNormalizado, $permitidos, true)) {
                 return response()->json([
                     'message' => 'Origen no autorizado por política CORS.',
                     'origin' => $origenNormalizado,

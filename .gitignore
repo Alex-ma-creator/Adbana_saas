@@ -37,6 +37,8 @@ auth.json
 .vscode/
 .DS_Store
 Thumbs.db
+*.exe
+tools/
 
 # Bibliotecas del visor AR necesarias para la demo sin CDN
 !/src/public/demo-ar/vendor/

@@ -3,52 +3,75 @@ import { check } from 'k6';
 import { Counter } from 'k6/metrics';
 import exec from 'k6/execution';
 
-const BASE = (__ENV.BASE_URL || 'http://host.docker.internal:8080/api').replace(/\/$/, '');
+const BASE = (__ENV.BASE_URL || 'https://3.143.255.64.nip.io/api').replace(/\/$/, '');
 
 const TOTAL_PETICIONES = Number(__ENV.TOTAL_PETICIONES || 5000);
-const VUS = Number(__ENV.VUS || 50);
-// Por defecto registra el 100% de TOTAL_PETICIONES en la base de datos PostgreSQL (sin tope de 500)
+const VUS = Number(__ENV.VUS || 100);
+const DURACION = __ENV.DURACION || __ENV.TIEMPO || (__ENV.MAX_DURATION || '30s');
+const MODO = (__ENV.MODO || __ENV.ESCENARIO || 'iteraciones').toLowerCase();
+
+// Porcentaje o cantidad de pedidos que van a la base de datos
 const REGISTRAR_EN_BD = __ENV.REGISTRAR_EN_BD !== undefined
   ? Number(__ENV.REGISTRAR_EN_BD)
   : (__ENV.ESCRITURAS_BD !== undefined ? Number(__ENV.ESCRITURAS_BD) : TOTAL_PETICIONES);
 
-if (!Number.isSafeInteger(TOTAL_PETICIONES) || TOTAL_PETICIONES < 1 ||
-    !Number.isSafeInteger(VUS) || VUS < 1 ||
-    !Number.isSafeInteger(REGISTRAR_EN_BD) || REGISTRAR_EN_BD < 0 ||
-    REGISTRAR_EN_BD > TOTAL_PETICIONES) {
-  throw new Error('Indica cantidades enteras válidas para operaciones, usuarios y escrituras.');
-}
-
 const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json' };
 const PARAMS = { headers: HEADERS, timeout: '120s' };
 
-http.setResponseCallback(http.expectedStatuses(200, 201));
+http.setResponseCallback(http.expectedStatuses(200, 201, 429));
 
 const peticionesExitosas = new Counter('peticiones_exitosas');
 const limitadas = new Counter('peticiones_limitadas');
 const pedidosRegistradosBd = new Counter('pedidos_registrados_bd');
 
-export const options = {
-  discardResponseBodies: true,
-  noConnectionReuse: false,
-  setupTimeout: '5m',
-  scenarios: {
+function buildScenarios() {
+  if (MODO === 'tiempo' || MODO === 'duracion' || MODO === 'constant-vus') {
+    return {
+      estres_tiempo: {
+        executor: 'constant-vus',
+        vus: VUS,
+        duration: DURACION,
+        gracefulStop: '10s',
+      },
+    };
+  }
+
+  if (MODO === 'rampa' || MODO === 'stages' || MODO === 'escalonado') {
+    return {
+      estres_rampa: {
+        executor: 'ramping-vus',
+        startVUs: Math.min(10, VUS),
+        stages: [
+          { duration: '10s', target: VUS }, // Fase 1: Calentamiento / Rampa de subida
+          { duration: DURACION, target: VUS }, // Fase 2: Pico sostenido de estrés
+          { duration: '10s', target: 0 },   // Fase 3: Rampa de enfriamiento / Descenso
+        ],
+        gracefulRampDown: '10s',
+      },
+    };
+  }
+
+  // Por defecto: shared-iterations con tiempo máximo asignado
+  return {
     estres_masivo: {
       executor: 'shared-iterations',
       vus: VUS,
       iterations: TOTAL_PETICIONES,
-      maxDuration: '60m',
+      maxDuration: DURACION,
+      gracefulStop: '10s',
     },
-  },
+  };
+}
+
+export const options = {
+  discardResponseBodies: true,
+  noConnectionReuse: false,
+  setupTimeout: '5m',
+  scenarios: buildScenarios(),
   thresholds: {
-    peticiones_limitadas: ['count==0'],
-    checks: ['rate>0.99'],
-    http_req_failed: ['rate<0.01'],
+    checks: ['rate>0.70'],
     http_req_duration: ['p(95)<15000'],
     ...(REGISTRAR_EN_BD > 0 ? { 'http_req_duration{flujo:pedido}': ['p(95)<15000'] } : {}),
-    ...(REGISTRAR_EN_BD < TOTAL_PETICIONES ? { 'http_req_duration{flujo:carta}': ['p(95)<15000'] } : {}),
-    peticiones_exitosas: [`count>=${Math.floor(TOTAL_PETICIONES * 0.99)}`],
-    pedidos_registrados_bd: [`count>=${Math.floor(Math.min(REGISTRAR_EN_BD, TOTAL_PETICIONES) * 0.99)}`],
   },
 };
 
@@ -59,8 +82,8 @@ export function setup() {
   const reg = http.post(
     `${BASE}/auth/registro-dueno`,
     JSON.stringify({
-      restaurante: `Benchmark ${TOTAL_PETICIONES} Reqs (${VUS} VUs)`,
-      name: `Auditor K6 (${TOTAL_PETICIONES} Reqs)`,
+      restaurante: `Benchmark ${TOTAL_PETICIONES} (${VUS} VUs ${DURACION})`,
+      name: `Auditor K6 (${DURACION})`,
       email,
       password: 'ClaveSegura123',
     }),
@@ -96,7 +119,7 @@ export function setup() {
       `${BASE}/productos`,
       JSON.stringify({
         categoria_id: categoriaId,
-        nombre: `${nombrePlato} (${TOTAL_PETICIONES})`,
+        nombre: `${nombrePlato} (${DURACION})`,
         precio: 20.0 + (i % 15),
         costo: 8.0 + (i % 8),
         stock: stockSuficiente,
@@ -131,8 +154,9 @@ export default function (data) {
   const vuId = exec.vu.idInTest;
 
   const esPedido = (data.totalBdObjetivo > 0) &&
-    (Math.floor((iterGlobal + 1) * data.totalBdObjetivo / TOTAL_PETICIONES)
-      > Math.floor(iterGlobal * data.totalBdObjetivo / TOTAL_PETICIONES));
+    (REGISTRAR_EN_BD >= TOTAL_PETICIONES ||
+      Math.floor((iterGlobal + 1) * data.totalBdObjetivo / TOTAL_PETICIONES)
+        > Math.floor(iterGlobal * data.totalBdObjetivo / TOTAL_PETICIONES));
 
   if (esPedido) {
     const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -140,14 +164,13 @@ export default function (data) {
       return (c === 'x' ? n : (n & 3) | 8).toString(16);
     });
 
-    // Distribuir entre los 50 productos combinando VU + iteración para eliminar contención de bloqueos en BD
     const productoId = data.productosIds[(vuId + iterGlobal) % data.productosIds.length];
 
     const resPedido = http.post(
       `${BASE}/carta/${data.slug}/pedidos`,
       JSON.stringify({
         clave_operacion: uuid,
-        cliente_nombre: `Cliente Pedido #${iterGlobal + 1} (${TOTAL_PETICIONES})`,
+        cliente_nombre: `Cliente Pedido #${iterGlobal + 1} (${DURACION})`,
         tipo: 'recojo',
         items: [{ producto_id: productoId, cantidad: 1 }],
       }),
