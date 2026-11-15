@@ -349,19 +349,19 @@ document.addEventListener('alpine:init', () => {
                     if (maxHoriz <= 0) return;
 
                     const nombre = ((p && p.nombre) ? String(p.nombre) : '').toLowerCase();
-                    let objetivoMetros = 0.25;
+                    let objetivoMetros = 0.16;
                     if (nombre.includes('pizza')) {
-                        objetivoMetros = 0.35;
+                        objetivoMetros = 0.17;
                     } else if (nombre.includes('hamburguesa') || nombre.includes('burger')) {
-                        objetivoMetros = 0.14;
+                        objetivoMetros = 0.145;
                     } else if (nombre.includes('brocheta') || nombre.includes('anticucho') || nombre.includes('parrilla')) {
-                        objetivoMetros = 0.25;
+                        objetivoMetros = 0.165;
                     } else if (nombre.includes('torta') || nombre.includes('pastel') || nombre.includes('cake') || nombre.includes('fresa') || nombre.includes('chocolate') || nombre.includes('postre')) {
-                        objetivoMetros = 0.24;
+                        objetivoMetros = 0.16;
                     }
 
-                    // Solo ajustamos si el modelo subido viene fuera de escala métrica real (< 6cm o > 50cm)
-                    if (maxHoriz < 0.06 || maxHoriz > 0.50) {
+                    // Normalizar siempre al tamaño físico predeterminado fijo (~15-17 cm)
+                    if (Math.abs(maxHoriz - objetivoMetros) > 0.01) {
                         const factor = Number((objetivoMetros / maxHoriz).toFixed(4));
                         elViewer.scale = `${factor} ${factor} ${factor}`;
                         if (typeof elViewer.updateFraming === 'function') {

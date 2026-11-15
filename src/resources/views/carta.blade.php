@@ -6,15 +6,15 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
-    <link rel="stylesheet" href="/css/carta-visual.css?v=20261114qr1">
+    <link rel="stylesheet" href="/css/carta-visual.css?v=20261114qr2">
     <script>
         window.ADBANA_CONFIG = {
             arPublicUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/')),
             arPublicBaseUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/'))
         };
     </script>
-    <script src="/js/vendor/jsQR.js?v=20261114qr1"></script>
-    <script type="module" src="/js/ar-engine.js?v=20261114qr1"></script>
+    <script src="/js/vendor/jsQR.js?v=20261114qr2"></script>
+    <script type="module" src="/js/ar-engine.js?v=20261114qr2"></script>
     <script src="/js/carta.js?config=20261114&v=20261114qr2"></script>
     <script defer src="/js/alpine.min.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
@@ -110,27 +110,12 @@
                                     >
                                         <button slot="ar-button" style="display:none" aria-hidden="true"></button>
                                         <div class="ar-hud-escaneo" @beforexrselect.prevent>
-                                            📲 Apunta al borde o centro de la mesa e inclina ligeramente el celular para fijar el plato
-                                        </div>
-                                        <div class="ar-hud-tracking-perdido" x-show="trackingPerdido" @beforexrselect.prevent>
-                                            <p>⚠️ Muy cerca de la superficie — aléjate unos centímetros mirando a la mesa para recuperar el plato</p>
-                                            <button type="button" class="btn-ar-recentrar"
-                                                    @beforexrselect.prevent
-                                                    @click.stop="recentrarPlatoEnMesa()">
-                                                🔄 Re-centrar plato en mesa
-                                            </button>
+                                            Apunta al QR de la mesa
                                         </div>
                                         <div class="ar-lock-shield" :class="{ 'is-locked': ancladoFijo }"
                                              @beforexrselect.prevent
                                              @pointerdown.stop
                                              @touchstart.stop></div>
-                                        <div class="ar-hud-controles" @beforexrselect.prevent>
-                                            <button type="button" class="btn-ar-lock" :class="{ 'is-locked': ancladoFijo }"
-                                                    @beforexrselect.prevent
-                                                    @click.stop="alternarAnclajePlato()">
-                                                <span x-text="ancladoFijo ? '🔒 Plato fijo en mesa (Toca aquí para recolocar)' : '🎯 Modo recolocar activo (Toca la mesa para mover el plato y luego fija) · 📌 Fijar plato aquí'"></span>
-                                            </button>
-                                        </div>
                                     </model-viewer>
                                     <button type="button" class="btn-ar-flotante" @click="abrirAR(p, document.getElementById('mv-' + p.id))">
                                         📱 Ver en AR
@@ -196,36 +181,15 @@
                                     >
                                         <button slot="ar-button" style="display:none" aria-hidden="true"></button>
                                         <div class="ar-hud-escaneo" @beforexrselect.prevent>
-                                            📲 Apunta al código QR de la mesa para fijar el plato al instante
-                                        </div>
-                                        <div class="ar-hud-tracking-perdido" x-show="trackingPerdido" @beforexrselect.prevent>
-                                            <p>⚠️ Muy cerca de la superficie — aléjate unos centímetros mirando a la mesa para recuperar el plato</p>
-                                            <button type="button" class="btn-ar-recentrar"
-                                                    @beforexrselect.prevent
-                                                    @click.stop="recentrarPlatoEnMesa()">
-                                                🔄 Re-centrar plato en mesa
-                                            </button>
+                                            Apunta al QR de la mesa
                                         </div>
                                         <div class="ar-lock-shield" :class="{ 'is-locked': ancladoFijo }"
                                              @beforexrselect.prevent
                                              @pointerdown.stop
                                              @touchstart.stop></div>
-                                        <div class="ar-hud-controles" @beforexrselect.prevent>
-                                            <button type="button" class="btn-ar-lock" :class="{ 'is-locked': ancladoFijo }"
-                                                    @beforexrselect.prevent
-                                                    @click.stop="alternarAnclajePlato()">
-                                                <span x-text="ancladoFijo ? '🔒 Plato fijo en mesa (Toca aquí para recolocar)' : '🎯 Modo recolocar activo (Toca la mesa para mover el plato y luego fija) · 📌 Fijar plato aquí'"></span>
-                                            </button>
-                                        </div>
                                     </model-viewer>
-                                    <p class="ar-guia-tip">
-                                        💡 <strong>Anclaje instantáneo con QR:</strong> Apunta la cámara al código QR de tu mesa para proyectar el plato en 3D al instante (&lt; 0.5 s), sin buscar bordes ni superficies.
-                                    </p>
                                     <button type="button" class="btn carta-ar" @click="abrirAR(p, document.getElementById('mv-modal-' + p.id))">
-                                        📷 Ver en tu mesa (AR con QR)
-                                    </button>
-                                    <button type="button" class="btn-sec carta-ar-nativo" @click="abrirARNativo(p, document.getElementById('mv-modal-' + p.id))">
-                                        🚀 Abrir en Google AR / Quick Look
+                                        📷 Ver en tu mesa (AR)
                                     </button>
                                 </div>
                             </template>
