@@ -657,6 +657,9 @@ document.addEventListener('alpine:init', () => {
                     }
                     document.title = datos.restaurante.nombre + ' | ' + this.t('titulo_carta');
                     this.restaurarCarrito();
+                    if (window.AdbanaQRAR && typeof window.AdbanaQRAR.precargarModelos === 'function') {
+                        window.AdbanaQRAR.precargarModelos(this.productos);
+                    }
                     const pendiente = sessionStorage.getItem('pedido-pendiente:' + this.slug);
                     if (pendiente) { this.abierto = true; this.errores = [this.t('err_pendiente')]; }
                 } catch (e) {

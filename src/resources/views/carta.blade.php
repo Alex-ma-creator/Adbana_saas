@@ -6,16 +6,16 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
-    <link rel="stylesheet" href="/css/carta-visual.css?v=20261114qr2">
+    <link rel="stylesheet" href="/css/carta-visual.css?v=20261114qr3">
     <script>
         window.ADBANA_CONFIG = {
             arPublicUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/')),
             arPublicBaseUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/'))
         };
     </script>
-    <script src="/js/vendor/jsQR.js?v=20261114qr2"></script>
-    <script type="module" src="/js/ar-engine.js?v=20261114qr2"></script>
-    <script src="/js/carta.js?config=20261114&v=20261114qr2"></script>
+    <script src="/js/vendor/jsQR.js?v=20261114qr3"></script>
+    <script type="module" src="/js/ar-engine.js?v=20261114qr3"></script>
+    <script src="/js/carta.js?config=20261114&v=20261114qr3"></script>
     <script defer src="/js/alpine.min.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 <link rel="stylesheet" href="/css/carga.css?v=20261031d"></head>
