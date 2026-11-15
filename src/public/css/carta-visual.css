@@ -380,6 +380,9 @@ model-viewer[ar-status="object-placed"] .ar-hud-controles {
     user-select: none;
     -webkit-user-select: none;
 }
+.qr-ar-overlay.is-webxr {
+    background: transparent !important;
+}
 .qr-ar-video {
     position: absolute;
     inset: 0;

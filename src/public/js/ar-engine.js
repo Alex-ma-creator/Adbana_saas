@@ -3,81 +3,8 @@ import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { RoomEnvironment } from './vendor/RoomEnvironment.js';
 
 /**
- * Filtro cinemático One-Euro (1€ Filter) con banda muerta (Deadband)
- * para eliminar al 100% el temblor de las esquinas del QR cuando la mano
- * está quieta, manteniendo respuesta fluida al mover el celular.
- */
-class OneEuroFilter {
-    constructor(minCutoff = 0.65, beta = 0.55, dCutoff = 1.0, deadband = 0.0018) {
-        this.minCutoff = minCutoff;
-        this.beta = beta;
-        this.dCutoff = dCutoff;
-        this.deadband = deadband;
-        this.xPrev = null;
-        this.dxPrev = 0;
-        this.tPrev = null;
-    }
-    reset() {
-        this.xPrev = null;
-        this.dxPrev = 0;
-        this.tPrev = null;
-    }
-    alpha(cutoff, dt) {
-        const tau = 1.0 / (2 * Math.PI * cutoff);
-        return 1.0 / (1.0 + tau / Math.max(dt, 0.001));
-    }
-    filter(x, t) {
-        if (this.tPrev === null || this.xPrev === null) {
-            this.xPrev = x;
-            this.tPrev = t;
-            return x;
-        }
-        const dt = Math.max(t - this.tPrev, 0.001);
-        this.tPrev = t;
-
-        // Banda muerta: si la variación es ruido sub-milimétrico del sensor de cámara, amortiguar al máximo
-        const delta = x - this.xPrev;
-        if (Math.abs(delta) < this.deadband) {
-            const aQuiet = this.alpha(0.18, dt);
-            this.xPrev = this.xPrev + aQuiet * delta;
-            this.dxPrev *= 0.5;
-            return this.xPrev;
-        }
-
-        const dx = delta / dt;
-        const edx = this.dxPrev + this.alpha(this.dCutoff, dt) * (dx - this.dxPrev);
-        this.dxPrev = edx;
-        const cutoff = this.minCutoff + this.beta * Math.abs(edx);
-        const result = this.xPrev + this.alpha(cutoff, dt) * delta;
-        this.xPrev = result;
-        return result;
-    }
-}
-
-class OneEuroFilterVec3 {
-    constructor(minCutoff = 0.65, beta = 0.55, deadband = 0.0018) {
-        this.fx = new OneEuroFilter(minCutoff, beta, 1.0, deadband);
-        this.fy = new OneEuroFilter(minCutoff, beta, 1.0, deadband);
-        this.fz = new OneEuroFilter(minCutoff, beta, 1.0, deadband * 1.5);
-    }
-    reset() {
-        this.fx.reset();
-        this.fy.reset();
-        this.fz.reset();
-    }
-    filter(v, t, out = new THREE.Vector3()) {
-        out.set(
-            this.fx.filter(v.x, t),
-            this.fy.filter(v.y, t),
-            this.fz.filter(v.z, t)
-        );
-        return out;
-    }
-}
-
-/**
  * Sombra de contacto suave en Y = 0.001 m debajo del plato para asentarlo
- * visualmente sobre la superficie de la mesa.
+ * visualmente sobre la superficie de la mesa (cero flotación).
  */
 function crearTexturaSombraContacto() {
     const size = 256;
@@ -87,15 +14,31 @@ function crearTexturaSombraContacto() {
     const ctx = canvas.getContext('2d');
     const half = size / 2;
     const grad = ctx.createRadialGradient(half, half, size * 0.08, half, half, size * 0.48);
-    grad.addColorStop(0.0, 'rgba(0, 0, 0, 0.78)');
-    grad.addColorStop(0.52, 'rgba(0, 0, 0, 0.44)');
-    grad.addColorStop(0.84, 'rgba(0, 0, 0, 0.12)');
+    grad.addColorStop(0.0, 'rgba(0, 0, 0, 0.80)');
+    grad.addColorStop(0.52, 'rgba(0, 0, 0, 0.46)');
+    grad.addColorStop(0.84, 'rgba(0, 0, 0, 0.14)');
     grad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
     return tex;
+}
+
+/**
+ * Anillo sutil en el piso/mesa mientras detecta el punto exacto de anclaje (< 0.5 s).
+ */
+function crearAnilloGuiaMesa() {
+    const geo = new THREE.RingGeometry(0.055, 0.068, 48);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({
+        color: 0x22c55e,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false
+    });
+    return new THREE.Mesh(geo, mat);
 }
 
 class AdbanaQRAREngine {
@@ -105,12 +48,32 @@ class AdbanaQRAREngine {
         this.promesasCarga = new Map();
 
         this.activo = false;
+        this.modoXR = false;
         this.modeloListo = false;
+
+        // Estado de Anclaje Único en Espacio Real (One-Shot Spatial Lock)
+        // Una vez anclado (ancladoDefinitivo = true), NO se vuelve a recalcular su posición,
+        // quedando 100% inmóvil sobre la mesa para poder acercarse a 2 cm o rodearlo 360°.
+        this.ancladoDefinitivo = false;
+        this.framesEstablesHit = 0;
+        this.tiempoInicioSesion = 0;
+        this.posCandidata = new THREE.Vector3();
+
+        // Recursos WebXR (Gama Media-Alta con ARCore / SLAM 6-DoF)
+        this.xrSession = null;
+        this.xrRefSpace = null;
+        this.xrHitTestSource = null;
+        this.reticulaMesh = null;
+
+        // Recursos Fallback WebRTC + QR One-Shot Lock (para equipos sin WebXR)
         this.stream = null;
         this.video = null;
         this.cvCanvas = document.createElement('canvas');
         this.cvCtx = this.cvCanvas.getContext('2d', { willReadFrequently: true });
+        this.ultimoEscaneoMs = 0;
+        this.tamanoFisicoQrMetros = 0.095;
 
+        // Escena Three.js
         this.renderer = null;
         this.scene = null;
         this.camera = null;
@@ -121,39 +84,20 @@ class AdbanaQRAREngine {
         this.platoPivot = null;
         this.platoMesh = null;
         this.sombraMesh = null;
+        this.rotacionUsuarioY = 0;
 
-        // Estado de tracking por QR
-        this.platoColocado = false;
-        this.qrVisibleAhora = false;
-        this.ultimoTiempoQR = 0;
-        this.ultimoEscaneoMs = 0;
-        this.usarRecorteCentral = false;
-
-        // Tamaño físico real del QR impreso en la mesa: 9.5 cm (0.095 m)
-        this.tamanoFisicoQrMetros = 0.095;
-
-        // Pose 3D estabilizada en espacio de cámara
-        this.posObjetivo = new THREE.Vector3(0, -0.02, -0.32);
-        this.posEstable = new THREE.Vector3(0, -0.02, -0.32);
-        this.quatObjetivo = new THREE.Quaternion();
-        this.quatEstable = new THREE.Quaternion();
-        this.filtroPos = new OneEuroFilterVec3(0.65, 0.55, 0.002);
-
-        // Sensores de gravedad/giroscopio (DeviceOrientationEvent) para clavar el plano horizontal de la mesa
-        // sin que el plato jamás se voltee de costado ni tiemble
+        // Sensores IMU para el fallback sin WebXR
         this.imuDisponible = false;
-        this.imuBetaRad = THREE.MathUtils.degToRad(42); // inclinación típica de 42° mirando la mesa
+        this.imuBetaRad = THREE.MathUtils.degToRad(42);
         this.imuGammaRad = 0;
         this.imuAlphaRad = 0;
         this.imuAlphaAnclaje = 0;
         this.yawQrAnclado = 0;
+        this.zoomAcercamiento = 1.0;
+        this.posAncladaFallback = new THREE.Vector3(0, -0.02, -0.32);
         this._onDeviceOrientationBound = (ev) => this.actualizarOrientacionIMU(ev);
 
-        // Acercamiento e inspección libre con gestos (pellizco para acercarse al plato y 1 dedo para girar)
-        this.zoomAcercamiento = 1.0; // > 1.0 acerca el plato hacia la cámara cuando el usuario quiere ver detalles de cerca
-        this.rotacionUsuarioY = 0;
-
-        // Referencias DOM (Interfaz ultra limpia: un solo indicador arriba + botón cerrar)
+        // DOM (Interfaz ultra limpia: un solo indicador arriba + botón cerrar)
         this.overlayRoot = null;
         this.uiStatusPill = null;
         this.uiStatusDot = null;
@@ -174,8 +118,7 @@ class AdbanaQRAREngine {
     }
 
     /**
-     * Unifica la URL con ?v=ar8 para reutilizar al 100% el caché HTTP de <model-viewer>
-     * y evitar descargar dos veces archivos de 6 MB a 12 MB.
+     * Unifica la URL con ?v=ar8 para compartir al 100% el caché del navegador con <model-viewer>.
      */
     normalizarUrlModelo(url) {
         if (!url) return '';
@@ -184,26 +127,25 @@ class AdbanaQRAREngine {
     }
 
     /**
-     * Pre-carga silenciosamente en segundo plano los modelos 3D de la carta
-     * apenas el usuario entra a la web, logrando apertura instantánea (0 s) al pulsar AR.
+     * Pre-carga en segundo plano los modelos 3D apenas se abre la carta digital.
      */
     precargarModelos(productos) {
         if (!Array.isArray(productos)) return;
         const con3D = productos.filter((p) => p && p.modelo_3d);
-        let delay = 400;
+        let delay = 300;
         for (const p of con3D) {
             setTimeout(() => {
                 if (!this.activo) {
                     this.cargarModeloNormalizado(p.modelo_3d, p).catch(() => {});
                 }
             }, delay);
-            delay += 1200;
+            delay += 1000;
         }
     }
 
     /**
-     * Carga el modelo .glb, lo escala a ~15 cm y asienta su base exactamente en Y = 0.0000
-     * sobre el plano horizontal de la mesa (cero flotación).
+     * Carga el modelo .glb, lo escala a ~15 cm y apoya su base exactamente en Y = 0.0000
+     * sobre el plano de la mesa (cero flotación).
      */
     async cargarModeloNormalizado(url, plato, onProgress) {
         const cleanUrl = this.normalizarUrlModelo(url);
@@ -247,7 +189,6 @@ class AdbanaQRAREngine {
 
                     const wrapper = new THREE.Group();
                     model.scale.setScalar(scale);
-                    // Base apoyada exactamente en Y = 0.0000 sobre la mesa
                     model.position.set(
                         -center.x * scale,
                         -box.min.y * scale,
@@ -275,25 +216,28 @@ class AdbanaQRAREngine {
         return res.clone(true);
     }
 
-    construirInterfazAR() {
+    construirInterfazAR(conVideoElement = false) {
         if (this.overlayRoot && this.overlayRoot.parentNode) {
             this.overlayRoot.parentNode.removeChild(this.overlayRoot);
         }
 
         const root = document.createElement('div');
         root.id = 'adbana-qr-ar-modal';
-        root.className = 'qr-ar-overlay';
+        root.className = 'qr-ar-overlay' + (conVideoElement ? '' : ' is-webxr');
 
-        const video = document.createElement('video');
-        video.className = 'qr-ar-video';
-        video.setAttribute('playsinline', '');
-        video.setAttribute('webkit-playsinline', '');
-        video.setAttribute('muted', '');
-        video.setAttribute('autoplay', '');
-        video.playsInline = true;
-        video.muted = true;
-        video.autoplay = true;
-        root.appendChild(video);
+        if (conVideoElement) {
+            const video = document.createElement('video');
+            video.className = 'qr-ar-video';
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+            video.setAttribute('muted', '');
+            video.setAttribute('autoplay', '');
+            video.playsInline = true;
+            video.muted = true;
+            video.autoplay = true;
+            root.appendChild(video);
+            this.video = video;
+        }
 
         const topBar = document.createElement('div');
         topBar.className = 'qr-ar-topbar';
@@ -307,11 +251,25 @@ class AdbanaQRAREngine {
         statusPill.appendChild(dot);
         statusPill.appendChild(statusTxt);
 
+        // Si el usuario toca la píldora cuando ya está anclado, permite volver a anclarlo en otro punto
+        statusPill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.ancladoDefinitivo) {
+                this.ancladoDefinitivo = false;
+                this.framesEstablesHit = 0;
+                this.tiempoInicioSesion = performance.now();
+                this.actualizarIndicadorUnico('buscando');
+            }
+        });
+
         const btnCerrar = document.createElement('button');
         btnCerrar.type = 'button';
         btnCerrar.className = 'qr-ar-btn-close';
         btnCerrar.textContent = '✕ Cerrar';
-        btnCerrar.addEventListener('click', () => this.finalizar());
+        btnCerrar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.finalizar();
+        });
 
         topBar.appendChild(statusPill);
         topBar.appendChild(btnCerrar);
@@ -320,23 +278,21 @@ class AdbanaQRAREngine {
         document.body.appendChild(root);
 
         this.overlayRoot = root;
-        this.video = video;
         this.uiStatusPill = statusPill;
         this.uiStatusDot = dot;
         this.uiStatusText = statusTxt;
     }
 
-    construirEscenaThree(plato) {
+    construirEscenaThree(plato, usarXR = false) {
         const vw = window.innerWidth || 390;
         const vh = window.innerHeight || 844;
 
         const scene = new THREE.Scene();
         scene.background = null;
 
-        // near = 0.005 m (5 mm) permite acercarse al plato a pocos milímetros sin recorte
-        const camera = new THREE.PerspectiveCamera(52, vw / vh, 0.005, 20);
+        // near = 0.005 m (5 mm) evita que el plato desaparezca al acercar el celular a 1 cm
+        const camera = new THREE.PerspectiveCamera(52, vw / vh, 0.005, 25);
         camera.position.set(0, 0, 0);
-        camera.lookAt(0, 0, -1);
 
         const renderer = new THREE.WebGLRenderer({
             antialias: true,
@@ -351,7 +307,16 @@ class AdbanaQRAREngine {
         renderer.toneMappingExposure = 1.12;
         renderer.domElement.className = 'qr-ar-webgl-canvas';
 
-        if (this.overlayRoot) {
+        if (usarXR) {
+            renderer.xr.enabled = true;
+            renderer.xr.setReferenceSpaceType('local');
+            // En WebXR, el compositor XR dibuja en el baseLayer nativo; no meter el canvas dentro del domOverlay
+            renderer.domElement.style.position = 'fixed';
+            renderer.domElement.style.inset = '0';
+            renderer.domElement.style.zIndex = '9998';
+            renderer.domElement.style.pointerEvents = 'none';
+            document.body.appendChild(renderer.domElement);
+        } else if (this.overlayRoot) {
             this.overlayRoot.insertBefore(renderer.domElement, this.overlayRoot.querySelector('.qr-ar-topbar'));
         }
 
@@ -365,10 +330,9 @@ class AdbanaQRAREngine {
         scene.add(hemiLight);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.65);
-        dirLight.position.set(0.5, 2.2, 1.2);
+        dirLight.position.set(0.5, 2.2, 1.0);
         scene.add(dirLight);
 
-        // platoRoot se alinea con la normal real de la superficie de la mesa (Y = 0 sobre el papel)
         const platoRoot = new THREE.Group();
         platoRoot.visible = false;
 
@@ -383,7 +347,7 @@ class AdbanaQRAREngine {
         const sombraMat = new THREE.MeshBasicMaterial({
             map: crearTexturaSombraContacto(),
             transparent: true,
-            opacity: 0.72,
+            opacity: 0.74,
             depthWrite: false
         });
         const sombraMesh = new THREE.Mesh(sombraGeo, sombraMat);
@@ -392,42 +356,49 @@ class AdbanaQRAREngine {
 
         scene.add(platoRoot);
 
+        // Anillo guía en la mesa mientras busca el punto de anclaje en los primeros milisegundos
+        const reticula = crearAnilloGuiaMesa();
+        reticula.visible = false;
+        scene.add(reticula);
+
         this.scene = scene;
         this.camera = camera;
         this.renderer = renderer;
         this.platoRoot = platoRoot;
         this.platoPivot = platoPivot;
         this.sombraMesh = sombraMesh;
+        this.reticulaMesh = reticula;
 
-        this.configurarInteraccionAcercamientoYGiro(renderer.domElement);
+        this.configurarGestosGiro(this.overlayRoot);
         this.actualizarDimensiones();
     }
 
-    /**
-     * Permite girar el plato 360° con 1 dedo y acercarse a ver los detalles (zoom de cámara)
-     * cuando el usuario acerca el celular y las esquinas del QR ya salieron del encuadre.
-     */
-    configurarInteraccionAcercamientoYGiro(domElement) {
+    configurarGestosGiro(targetEl) {
+        if (!targetEl) return;
         let arrastrando = false;
         let prevX = 0;
         let distPinchInicial = 0;
         let zoomInicial = 1.0;
 
-        domElement.addEventListener('pointerdown', (e) => {
+        targetEl.addEventListener('pointerdown', (e) => {
+            if (e.target && (e.target.closest('.qr-ar-btn-close') || e.target.closest('.qr-ar-status-pill'))) return;
             arrastrando = true;
             prevX = e.clientX;
         });
-        domElement.addEventListener('pointermove', (e) => {
-            if (!arrastrando || !this.platoColocado) return;
+        targetEl.addEventListener('pointermove', (e) => {
+            if (!arrastrando || !this.ancladoDefinitivo) return;
             const dx = e.clientX - prevX;
             prevX = e.clientX;
             this.rotacionUsuarioY += dx * 0.012;
+            if (this.platoPivot) {
+                this.platoPivot.rotation.y = this.rotacionUsuarioY;
+            }
         });
         window.addEventListener('pointerup', () => {
             arrastrando = false;
         });
 
-        domElement.addEventListener('touchstart', (e) => {
+        targetEl.addEventListener('touchstart', (e) => {
             if (e.touches && e.touches.length === 2) {
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -436,8 +407,8 @@ class AdbanaQRAREngine {
             }
         }, { passive: true });
 
-        domElement.addEventListener('touchmove', (e) => {
-            if (e.touches && e.touches.length === 2 && distPinchInicial > 10) {
+        targetEl.addEventListener('touchmove', (e) => {
+            if (!this.modoXR && e.touches && e.touches.length === 2 && distPinchInicial > 10) {
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 const distActual = Math.hypot(dx, dy);
@@ -449,32 +420,252 @@ class AdbanaQRAREngine {
     actualizarDimensiones() {
         const vw = window.innerWidth || 390;
         const vh = window.innerHeight || 844;
-        if (this.camera) {
+        if (this.camera && !this.modoXR) {
             this.camera.aspect = vw / vh;
             this.camera.updateProjectionMatrix();
         }
-        if (this.renderer) {
+        if (this.renderer && !this.modoXR) {
             this.renderer.setSize(vw, vh);
         }
     }
 
+    actualizarIndicadorUnico(estado, porcentaje = 0) {
+        if (!this.uiStatusDot || !this.uiStatusText) return;
+        if (estado === 'cargando') {
+            this.uiStatusDot.className = 'qr-ar-status-dot is-scanning';
+            this.uiStatusText.textContent = porcentaje > 0 ? `Cargando plato 3D (${porcentaje}%)…` : 'Cargando plato 3D…';
+        } else if (estado === 'anclado') {
+            this.uiStatusDot.className = 'qr-ar-status-dot is-tracking';
+            this.uiStatusText.textContent = 'Plato anclado';
+        } else {
+            this.uiStatusDot.className = 'qr-ar-status-dot is-scanning';
+            this.uiStatusText.textContent = 'Apunta al QR de la mesa';
+        }
+    }
+
     /**
-     * Lee los ángulos reales de inclinación del teléfono respecto a la gravedad terrestre.
-     * Como toda mesa de restaurante es horizontal, el vector de gravedad nos da la normal
-     * exacta del plano de la mesa con 0.1° de precisión y CERO temblor, evitando que el
-     * plato se voltee de costado jamás.
+     * ============================================================================
+     * MODO 1 (PRINCIPAL PARA GAMA MEDIA-ALTA): WebXR Nativo 6-DoF (ARCore SLAM)
+     * ============================================================================
+     * Ancla el plato UNA SOLA VEZ en coordenadas reales del espacio físico (X, Y, Z).
+     * Una vez anclado, queda 100% inmóvil sobre la mesa: puedes acercar el celular
+     * a 2 centímetros del plato o rodearlo 360° por todos los ángulos sin que se mueva.
+     */
+    async intentarIniciarWebXR(plato, promesaModelo) {
+        if (!navigator.xr || typeof navigator.xr.isSessionSupported !== 'function') {
+            return false;
+        }
+
+        let soportado = false;
+        try {
+            soportado = await navigator.xr.isSessionSupported('immersive-ar');
+        } catch (e) {
+            return false;
+        }
+        if (!soportado) return false;
+
+        this.construirInterfazAR(false);
+        this.construirEscenaThree(plato, true);
+
+        const urlNormalizada = this.normalizarUrlModelo(plato && plato.modelo_3d);
+        if (!this.cacheModelos.has(urlNormalizada)) {
+            this.actualizarIndicadorUnico('cargando', 0);
+        }
+
+        let session = null;
+        try {
+            // PROHIBIDO pedir depth-sensing (en Xiaomi/Poco HyperOS deja la cámara en negro)
+            session = await navigator.xr.requestSession('immersive-ar', {
+                requiredFeatures: ['local'],
+                optionalFeatures: ['hit-test', 'dom-overlay'],
+                domOverlay: { root: this.overlayRoot }
+            });
+        } catch (errSession) {
+            if (this.overlayRoot && this.overlayRoot.parentNode) {
+                this.overlayRoot.parentNode.removeChild(this.overlayRoot);
+            }
+            this.overlayRoot = null;
+            return false;
+        }
+
+        this.modoXR = true;
+        this.xrSession = session;
+        this.ancladoDefinitivo = false;
+        this.framesEstablesHit = 0;
+        this.tiempoInicioSesion = performance.now();
+
+        session.addEventListener('end', () => {
+            if (this.activo) {
+                this.finalizar();
+            }
+        });
+
+        try {
+            if (typeof session.updateRenderState === 'function') {
+                session.updateRenderState({ depthNear: 0.005, depthFar: 20.0 });
+            }
+        } catch (e) {}
+
+        await this.renderer.xr.setSession(session);
+
+        try {
+            this.xrRefSpace = await session.requestReferenceSpace('local');
+            const viewerSpace = await session.requestReferenceSpace('viewer');
+            if (typeof session.requestHitTestSource === 'function') {
+                this.xrHitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+            }
+        } catch (e) {}
+
+        promesaModelo.then((modeloGroup) => {
+            if (!this.activo || !this.platoPivot) return;
+            this.platoMesh = modeloGroup;
+            this.platoPivot.add(modeloGroup);
+            this.modeloListo = true;
+            if (this.ancladoDefinitivo && this.platoRoot) {
+                this.platoRoot.visible = true;
+                this.actualizarIndicadorUnico('anclado');
+            } else {
+                this.actualizarIndicadorUnico('buscando');
+            }
+        }).catch(() => {});
+
+        const tempMatrix = new THREE.Matrix4();
+        const tempPos = new THREE.Vector3();
+        const tempQuat = new THREE.Quaternion();
+        const tempScale = new THREE.Vector3();
+        const camWorldPos = new THREE.Vector3();
+        const camForward = new THREE.Vector3();
+
+        this.renderer.setAnimationLoop((timestamp, frame) => {
+            if (!this.activo || !frame) return;
+
+            // Parchear near = 0.005 m (5 mm) en la cámara XR para que al acercarse nunca desaparezca el plato
+            const xrCam = this.renderer.xr.getCamera(this.camera);
+            if (xrCam) {
+                xrCam.near = 0.005;
+                if (typeof xrCam.updateProjectionMatrix === 'function') xrCam.updateProjectionMatrix();
+                if (Array.isArray(xrCam.cameras)) {
+                    for (const subCam of xrCam.cameras) {
+                        subCam.near = 0.005;
+                        if (typeof subCam.updateProjectionMatrix === 'function') subCam.updateProjectionMatrix();
+                    }
+                }
+            }
+
+            const refSpace = this.xrRefSpace || this.renderer.xr.getReferenceSpace();
+            if (!refSpace) return;
+
+            // Si aún NO está anclado definitivamente, buscamos la superficie de la mesa/QR una sola vez
+            if (!this.ancladoDefinitivo) {
+                let hitExitoso = false;
+
+                if (this.xrHitTestSource) {
+                    try {
+                        const hitResults = frame.getHitTestResults(this.xrHitTestSource);
+                        if (hitResults && hitResults.length > 0) {
+                            const hit = hitResults[0];
+                            const hitPose = hit.getPose(refSpace);
+                            if (hitPose) {
+                                tempMatrix.fromArray(hitPose.transform.matrix);
+                                tempMatrix.decompose(tempPos, tempQuat, tempScale);
+
+                                // Verificar que sea una superficie horizontal (mesa/papel QR, normal.y > 0.70)
+                                const normalY = hitPose.transform.matrix[5];
+                                if (normalY > 0.70) {
+                                    hitExitoso = true;
+                                    if (this.reticulaMesh) {
+                                        this.reticulaMesh.position.copy(tempPos);
+                                        this.reticulaMesh.visible = true;
+                                    }
+
+                                    if (this.framesEstablesHit === 0) {
+                                        this.posCandidata.copy(tempPos);
+                                    } else {
+                                        this.posCandidata.lerp(tempPos, 0.35);
+                                    }
+                                    this.framesEstablesHit++;
+
+                                    // Apenas acumula 4 frames estables (~60 ms), CLAVAMOS el plato en el espacio 3D
+                                    if (this.framesEstablesHit >= 4) {
+                                        this.clavarPlatoEnEspacioXR(this.posCandidata, xrCam);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Fallback instantáneo (1.1 s): si la mesa tiene mantel muy oscuro/vidrio o el usuario apunta directo al QR
+                // sin que hit-test dispare aún, anclamos el plato en el plano horizontal de la mesa a 38 cm frente al lente.
+                if (!hitExitoso && (performance.now() - this.tiempoInicioSesion > 1100) && this.modeloListo) {
+                    const viewerPose = frame.getViewerPose(refSpace);
+                    if (viewerPose && viewerPose.transform) {
+                        tempMatrix.fromArray(viewerPose.transform.matrix);
+                        tempMatrix.decompose(camWorldPos, tempQuat, tempScale);
+                        camForward.set(0, 0, -1).applyQuaternion(tempQuat);
+
+                        // Proyectar a 38 cm delante de la cámara sobre el plano horizontal de la mesa
+                        const dist = 0.38;
+                        const targetPos = new THREE.Vector3(
+                            camWorldPos.x + camForward.x * dist,
+                            camWorldPos.y + Math.min(camForward.y * dist, -0.14),
+                            camWorldPos.z + camForward.z * dist
+                        );
+                        this.clavarPlatoEnEspacioXR(targetPos, xrCam);
+                    }
+                }
+            }
+
+            this.renderer.render(this.scene, this.camera);
+        });
+
+        return true;
+    }
+
+    /**
+     * Clava el plato en las coordenadas 3D reales (posMundo) con orientación 100% horizontal
+     * asentada sobre la mesa (rotation.x = 0, rotation.z = 0) y bloquea su posición para que
+     * no se mueva ni un milímetro mientras el usuario lo rodea o se acerca.
+     */
+    clavarPlatoEnEspacioXR(posMundo, xrCam) {
+        if (!this.platoRoot) return;
+
+        this.platoRoot.position.copy(posMundo);
+
+        // Orientar el frente del plato hacia el usuario manteniendo el plato 100% horizontal sobre la mesa
+        let yawHaciaUsuario = 0;
+        if (xrCam) {
+            const camPos = new THREE.Vector3();
+            xrCam.getWorldPosition(camPos);
+            yawHaciaUsuario = Math.atan2(camPos.x - posMundo.x, camPos.z - posMundo.z);
+        }
+        this.platoRoot.rotation.set(0, yawHaciaUsuario, 0);
+
+        if (this.reticulaMesh) {
+            this.reticulaMesh.visible = false;
+        }
+
+        this.ancladoDefinitivo = true;
+        if (this.modeloListo) {
+            this.platoRoot.visible = true;
+            this.actualizarIndicadorUnico('anclado');
+        }
+    }
+
+    /**
+     * ============================================================================
+     * MODO 2 (FALLBACK UNIVERSAL): Cámara WebRTC + Anclaje Único QR (One-Shot Lock)
+     * ============================================================================
+     * Cuando el navegador no soporta WebXR (ej. iOS Safari o PC), detecta el QR
+     * una sola vez, clava la posición del plato y APAGA el re-cálculo continuo de
+     * esquinas para que nunca tiemble.
      */
     actualizarOrientacionIMU(ev) {
         if (ev.beta === null || ev.gamma === null) return;
         const degToRad = THREE.MathUtils.degToRad;
-        // beta: 0° cuando el celular está plano mirando hacia abajo a la mesa, 90° cuando está vertical
-        const rawBeta = THREE.MathUtils.clamp(ev.beta || 0, 2, 86);
-        const rawGamma = THREE.MathUtils.clamp(ev.gamma || 0, -45, 45);
-        const rawAlpha = ev.alpha || 0;
-
-        const bRad = degToRad(rawBeta);
-        const gRad = degToRad(rawGamma);
-        const aRad = degToRad(rawAlpha);
+        const bRad = degToRad(THREE.MathUtils.clamp(ev.beta || 0, 2, 86));
+        const gRad = degToRad(THREE.MathUtils.clamp(ev.gamma || 0, -45, 45));
+        const aRad = degToRad(ev.alpha || 0);
 
         if (!this.imuDisponible) {
             this.imuBetaRad = bRad;
@@ -483,27 +674,16 @@ class AdbanaQRAREngine {
             this.imuAlphaAnclaje = aRad;
             this.imuDisponible = true;
         } else {
-            this.imuBetaRad += (bRad - this.imuBetaRad) * 0.25;
-            this.imuGammaRad += (gRad - this.imuGammaRad) * 0.25;
+            this.imuBetaRad += (bRad - this.imuBetaRad) * 0.22;
+            this.imuGammaRad += (gRad - this.imuGammaRad) * 0.22;
             this.imuAlphaRad = aRad;
         }
     }
 
-    /**
-     * Calcula el cuaternión de orientación 3D de la mesa en espacio de cámara:
-     * 1. Alinea el eje +Y del plato (de la base del pan a la tapa superior) con la normal
-     *    vertical hacia arriba de la mesa (calculada por gravedad IMU o escorzo del QR).
-     * 2. Gira el plato sobre el plano de la mesa según el ángulo horizontal (Yaw) del QR.
-     * Esto garantiza matemáticamente que el plato SIEMPRE esté asentado plano sobre la hoja
-     * y NUNCA se ponga de canto ni de costado.
-     */
     calcularCuaternionMesaEstable(anguloEscorzoFallbackRad, yawEnMesaRad) {
         const beta = this.imuDisponible ? this.imuBetaRad : anguloEscorzoFallbackRad;
         const gamma = this.imuDisponible ? this.imuGammaRad : 0;
 
-        // En cámara Three.js (+X derecha, +Y arriba en pantalla, +Z saliendo de la pantalla hacia el usuario):
-        // - Si el celular está paralelo al papel mirando hacia abajo (beta = 0°): la normal hacia arriba de la mesa apunta a +Z_cam (0, 0, 1).
-        // - Si el celular está inclinado 45° (beta = 45°): la normal hacia arriba de la mesa apunta a (0, sin(45°), cos(45°)).
         const nx = -Math.sin(gamma) * Math.cos(beta);
         const ny = Math.sin(beta);
         const nz = Math.cos(gamma) * Math.cos(beta);
@@ -511,11 +691,7 @@ class AdbanaQRAREngine {
 
         const ejeArribaModelo = new THREE.Vector3(0, 1, 0);
         const quatPlanoMesa = new THREE.Quaternion().setFromUnitVectors(ejeArribaModelo, normalMesa);
-
-        const quatGiroEnMesa = new THREE.Quaternion().setFromAxisAngle(
-            ejeArribaModelo,
-            yawEnMesaRad + this.rotacionUsuarioY
-        );
+        const quatGiroEnMesa = new THREE.Quaternion().setFromAxisAngle(ejeArribaModelo, yawEnMesaRad);
 
         return quatPlanoMesa.multiply(quatGiroEnMesa);
     }
@@ -538,17 +714,12 @@ class AdbanaQRAREngine {
         };
     }
 
-    /**
-     * Escaneo de alta resolución (720 px) + recorte central adaptativo para detectar el QR
-     * incluso en ángulos muy inclinados (como la Foto 4) o a mayor distancia.
-     */
     detectarQREnFrame() {
         if (!this.video || this.video.readyState < 2 || !window.jsQR) return null;
         const vw = this.video.videoWidth;
         const vh = this.video.videoHeight;
         if (!vw || !vh) return null;
 
-        // Paso 1: Escaneo a alta definición (720 px de lado mayor) para leer QR inclinados
         const targetW = 720;
         const targetH = Math.max(405, Math.round((vh / vw) * targetW));
         if (this.cvCanvas.width !== targetW || this.cvCanvas.height !== targetH) {
@@ -562,199 +733,18 @@ class AdbanaQRAREngine {
             inversionAttempts: 'dontInvert'
         });
 
-        if (code && code.location) {
-            return {
-                data: code.data,
-                cw: targetW,
-                ch: targetH,
-                corners: {
-                    topLeft: code.location.topLeftCorner,
-                    topRight: code.location.topRightCorner,
-                    bottomRight: code.location.bottomRightCorner,
-                    bottomLeft: code.location.bottomLeftCorner
-                }
-            };
-        }
-
-        // Paso 2 (Alternado): Si no se detectó en el cuadro completo (ej. QR inclinado o lejano),
-        // analizar un recorte central con zoom 1.6x a resolución nativa del video
-        this.usarRecorteCentral = !this.usarRecorteCentral;
-        if (this.usarRecorteCentral) {
-            const cropW = Math.round(vw * 0.62);
-            const cropH = Math.round(vh * 0.62);
-            const sx = Math.round((vw - cropW) * 0.5);
-            const sy = Math.round((vh - cropH) * 0.5);
-
-            this.cvCtx.drawImage(this.video, sx, sy, cropW, cropH, 0, 0, targetW, targetH);
-            const cropData = this.cvCtx.getImageData(0, 0, targetW, targetH);
-            const codeCrop = window.jsQR(cropData.data, targetW, targetH, {
-                inversionAttempts: 'attemptBoth'
-            });
-
-            if (codeCrop && codeCrop.location) {
-                const mapBack = (pt) => ({
-                    x: ((sx + (pt.x / targetW) * cropW) / vw) * targetW,
-                    y: ((sy + (pt.y / targetH) * cropH) / vh) * targetH
-                });
-                return {
-                    data: codeCrop.data,
-                    cw: targetW,
-                    ch: targetH,
-                    corners: {
-                        topLeft: mapBack(codeCrop.location.topLeftCorner),
-                        topRight: mapBack(codeCrop.location.topRightCorner),
-                        bottomRight: mapBack(codeCrop.location.bottomRightCorner),
-                        bottomLeft: mapBack(codeCrop.location.bottomLeftCorner)
-                    }
-                };
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Calcula la intersección de las dos diagonales del cuadrilátero QR para obtener el
-     * verdadero centro proyectivo 3D sobre la hoja, inmune a la distorsión de perspectiva.
-     */
-    calcularCentroProyectivoQR(tl, tr, br, bl) {
-        const x1 = tl.x, y1 = tl.y;
-        const x2 = br.x, y2 = br.y;
-        const x3 = tr.x, y3 = tr.y;
-        const x4 = bl.x, y4 = bl.y;
-
-        const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-        if (Math.abs(denom) > 1e-4) {
-            const a = x1 * y2 - y1 * x2;
-            const b = x3 * y4 - y3 * x4;
-            return {
-                x: (a * (x3 - x4) - (x1 - x2) * b) / denom,
-                y: (a * (y3 - y4) - (y1 - y2) * b) / denom
-            };
-        }
+        if (!code || !code.location) return null;
         return {
-            x: (tl.x + tr.x + br.x + bl.x) * 0.25,
-            y: (tl.y + tr.y + br.y + bl.y) * 0.25
-        };
-    }
-
-    actualizarPoseDesdeEsquinasQR(det, timestampSec) {
-        const vw = window.innerWidth || 390;
-        const vh = window.innerHeight || 844;
-
-        const tl = this.mapearPuntoVideoAPantalla(det.corners.topLeft.x, det.corners.topLeft.y, det.cw, det.ch, vw, vh);
-        const tr = this.mapearPuntoVideoAPantalla(det.corners.topRight.x, det.corners.topRight.y, det.cw, det.ch, vw, vh);
-        const br = this.mapearPuntoVideoAPantalla(det.corners.bottomRight.x, det.corners.bottomRight.y, det.cw, det.ch, vw, vh);
-        const bl = this.mapearPuntoVideoAPantalla(det.corners.bottomLeft.x, det.corners.bottomLeft.y, det.cw, det.ch, vw, vh);
-
-        // 1. Centro proyectivo exacto (intersección de diagonales del QR)
-        const centro = this.calcularCentroProyectivoQR(tl, tr, br, bl);
-
-        // 2. Tamaño aparente sin distorsión de escorzo (usando el lado mayor y la diagonal mayor / sqrt(2))
-        const topLen = Math.hypot(tr.x - tl.x, tr.y - tl.y);
-        const botLen = Math.hypot(br.x - bl.x, br.y - bl.y);
-        const leftLen = Math.hypot(bl.x - tl.x, bl.y - tl.y);
-        const rightLen = Math.hypot(br.x - tr.x, br.y - tr.y);
-        const diag1 = Math.hypot(br.x - tl.x, br.y - tl.y) / Math.SQRT2;
-        const diag2 = Math.hypot(tr.x - bl.x, tr.y - bl.y) / Math.SQRT2;
-
-        const avgHorizPx = (topLen + botLen) * 0.5;
-        const avgVertPx = (leftLen + rightLen) * 0.5;
-        const maxDiagSpan = Math.max(diag1, diag2);
-        const unforeshortenedSpanPx = Math.max(avgHorizPx, avgVertPx, maxDiagSpan, 24);
-
-        // 3. Distancia real en metros (profundidad Z) permitiendo acercarse hasta 7 cm (0.07 m)
-        const fovRad = THREE.MathUtils.degToRad(this.camera.fov);
-        const fy = (vh * 0.5) / Math.tan(fovRad * 0.5);
-        const rawDepth = (fy * this.tamanoFisicoQrMetros) / unforeshortenedSpanPx;
-        const depth = THREE.MathUtils.clamp(rawDepth / this.zoomAcercamiento, 0.07, 1.45);
-
-        // 4. Posición 3D exacta sobre el centro del QR en la mesa (CERO flotación vertical)
-        const ndcX = (centro.x / vw) * 2 - 1;
-        const ndcY = -(centro.y / vh) * 2 + 1;
-        const halfH = depth * Math.tan(fovRad * 0.5);
-        const halfW = halfH * this.camera.aspect;
-
-        const worldX = ndcX * halfW;
-        const worldY = ndcY * halfH;
-        const worldZ = -depth;
-
-        this.posObjetivo.set(worldX, worldY, worldZ);
-        this.filtroPos.filter(this.posObjetivo, timestampSec, this.posEstable);
-
-        // 5. Orientación 3D asentada sobre la mesa (Gravedad IMU + Giro Yaw del QR en la mesa)
-        const ratioEscorzo = THREE.MathUtils.clamp(
-            Math.min(avgHorizPx, avgVertPx) / Math.max(avgHorizPx, avgVertPx, 1),
-            0.25,
-            1.0
-        );
-        const anguloEscorzoFallback = Math.acos(ratioEscorzo);
-
-        const edgeDx = ((tr.x - tl.x) + (br.x - bl.x)) * 0.5;
-        const edgeDy = ((tr.y - tl.y) + (br.y - bl.y)) * 0.5;
-        const yawQr = Math.atan2(-edgeDy, edgeDx);
-        this.yawQrAnclado = yawQr;
-        this.imuAlphaAnclaje = this.imuAlphaRad;
-
-        this.quatObjetivo.copy(this.calcularCuaternionMesaEstable(anguloEscorzoFallback, yawQr));
-
-        if (!this.platoColocado) {
-            this.quatEstable.copy(this.quatObjetivo);
-        } else {
-            this.quatEstable.slerp(this.quatObjetivo, 0.18);
-        }
-
-        if (this.platoRoot) {
-            this.platoRoot.position.copy(this.posEstable);
-            this.platoRoot.quaternion.copy(this.quatEstable);
-            if (this.modeloListo) {
-                this.platoRoot.visible = true;
+            data: code.data,
+            cw: targetW,
+            ch: targetH,
+            corners: {
+                topLeft: code.location.topLeftCorner,
+                topRight: code.location.topRightCorner,
+                bottomRight: code.location.bottomRightCorner,
+                bottomLeft: code.location.bottomLeftCorner
             }
-        }
-
-        this.platoColocado = true;
-        this.qrVisibleAhora = true;
-        this.ultimoTiempoQR = performance.now();
-        if (this.modeloListo) {
-            this.actualizarIndicadorUnico('anclado');
-        }
-    }
-
-    /**
-     * Cuando el usuario acerca mucho el celular al plato y las esquinas del QR salen de pantalla,
-     * mantiene el plato firme y actualiza suavemente el ángulo de vista con el giroscopio IMU.
-     */
-    actualizarVistaCercanaSinQR() {
-        if (!this.platoColocado || !this.platoRoot) return;
-
-        const deltaAlpha = this.imuDisponible ? (this.imuAlphaRad - this.imuAlphaAnclaje) : 0;
-        const quatInspeccion = this.calcularCuaternionMesaEstable(
-            THREE.MathUtils.degToRad(42),
-            this.yawQrAnclado - deltaAlpha
-        );
-        this.quatEstable.slerp(quatInspeccion, 0.15);
-
-        // Aplicar acercamiento si el usuario hace pinch-zoom mientras está cerca del plato
-        const zConZoom = THREE.MathUtils.clamp(this.posEstable.z / this.zoomAcercamiento, -1.45, -0.07);
-        this.platoRoot.position.set(this.posEstable.x, this.posEstable.y, zConZoom);
-        this.platoRoot.quaternion.copy(this.quatEstable);
-        if (this.modeloListo) {
-            this.platoRoot.visible = true;
-        }
-    }
-
-    actualizarIndicadorUnico(estado, porcentaje = 0) {
-        if (!this.uiStatusDot || !this.uiStatusText) return;
-        if (estado === 'cargando') {
-            this.uiStatusDot.className = 'qr-ar-status-dot is-scanning';
-            this.uiStatusText.textContent = porcentaje > 0 ? `Cargando plato 3D (${porcentaje}%)…` : 'Cargando plato 3D…';
-        } else if (estado === 'anclado') {
-            this.uiStatusDot.className = 'qr-ar-status-dot is-tracking';
-            this.uiStatusText.textContent = 'Plato anclado';
-        } else {
-            this.uiStatusDot.className = 'qr-ar-status-dot is-scanning';
-            this.uiStatusText.textContent = 'Apunta al QR de la mesa';
-        }
+        };
     }
 
     async activarPermisoIMUSiNecesario() {
@@ -771,32 +761,16 @@ class AdbanaQRAREngine {
     }
 
     async iniciar(plato, onFallback3D) {
-        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-            if (typeof onFallback3D === 'function') {
-                onFallback3D('Tu navegador o conexión actual no permite abrir la cámara directamente. Mostrando el visor 3D interactivo.');
-            }
-            return;
-        }
-
         this.finalizar();
         this.activo = true;
+        this.modoXR = false;
         this.modeloListo = false;
-        this.platoColocado = false;
-        this.qrVisibleAhora = false;
-        this.zoomAcercamiento = 1.0;
+        this.ancladoDefinitivo = false;
+        this.framesEstablesHit = 0;
         this.rotacionUsuarioY = 0;
-        this.filtroPos.reset();
+        this.zoomAcercamiento = 1.0;
 
-        this.activarPermisoIMUSiNecesario();
-        this.construirInterfazAR();
-
-        // Iniciar la descarga/clonación del modelo EN PARALELO mientras se abre la cámara
-        const urlNormalizada = this.normalizarUrlModelo(plato && plato.modelo_3d);
-        const yaEnCache = this.cacheModelos.has(urlNormalizada);
-        if (!yaEnCache) {
-            this.actualizarIndicadorUnico('cargando', 0);
-        }
-
+        // Cargar/clonar el modelo .glb inmediatamente en paralelo
         const promesaModelo = this.cargarModeloNormalizado(
             plato.modelo_3d,
             plato,
@@ -806,6 +780,29 @@ class AdbanaQRAREngine {
                 }
             }
         );
+
+        // 1. Intentar primero WebXR nativo 6-DoF (ARCore SLAM en Android de gama media/alta)
+        const xrIniciado = await this.intentarIniciarWebXR(plato, promesaModelo);
+        if (xrIniciado) {
+            return;
+        }
+
+        // 2. Fallback WebRTC + One-Shot QR Lock (para iOS Safari / navegadores sin WebXR)
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+            this.finalizar();
+            if (typeof onFallback3D === 'function') {
+                onFallback3D('Tu navegador o conexión actual no permite abrir la cámara directamente. Mostrando el visor 3D interactivo.');
+            }
+            return;
+        }
+
+        this.activarPermisoIMUSiNecesario();
+        this.construirInterfazAR(true);
+
+        const urlNormalizada = this.normalizarUrlModelo(plato && plato.modelo_3d);
+        if (!this.cacheModelos.has(urlNormalizada)) {
+            this.actualizarIndicadorUnico('cargando', 0);
+        }
 
         let stream = null;
         try {
@@ -844,7 +841,7 @@ class AdbanaQRAREngine {
             return;
         }
 
-        this.construirEscenaThree(plato);
+        this.construirEscenaThree(plato, false);
         window.addEventListener('resize', this._onResizeBound);
 
         promesaModelo.then((modeloGroup) => {
@@ -852,7 +849,7 @@ class AdbanaQRAREngine {
             this.platoMesh = modeloGroup;
             this.platoPivot.add(modeloGroup);
             this.modeloListo = true;
-            if (this.platoColocado && this.platoRoot) {
+            if (this.ancladoDefinitivo && this.platoRoot) {
                 this.platoRoot.visible = true;
                 this.actualizarIndicadorUnico('anclado');
             } else {
@@ -860,22 +857,70 @@ class AdbanaQRAREngine {
             }
         }).catch(() => {});
 
-        const loop = (nowMs) => {
-            if (!this.activo) return;
-            this.rafId = requestAnimationFrame(loop);
+        const loopFallback = (nowMs) => {
+            if (!this.activo || this.modoXR) return;
+            this.rafId = requestAnimationFrame(loopFallback);
 
-            if (nowMs - this.ultimoEscaneoMs >= 35) {
+            // Anclaje de 1 solo disparo (One-Shot Lock): una vez detectado el QR durante 3 lecturas,
+            // congela la posición y DEJA de leer el QR para que no vuelva a moverse ni temblar.
+            if (!this.ancladoDefinitivo && nowMs - this.ultimoEscaneoMs >= 40) {
                 this.ultimoEscaneoMs = nowMs;
                 const det = this.detectarQREnFrame();
                 if (det) {
-                    this.actualizarPoseDesdeEsquinasQR(det, nowMs * 0.001);
-                } else {
-                    if (this.qrVisibleAhora && nowMs - this.ultimoTiempoQR > 320) {
-                        this.qrVisibleAhora = false;
+                    const vw = window.innerWidth || 390;
+                    const vh = window.innerHeight || 844;
+                    const tl = this.mapearPuntoVideoAPantalla(det.corners.topLeft.x, det.corners.topLeft.y, det.cw, det.ch, vw, vh);
+                    const tr = this.mapearPuntoVideoAPantalla(det.corners.topRight.x, det.corners.topRight.y, det.cw, det.ch, vw, vh);
+                    const br = this.mapearPuntoVideoAPantalla(det.corners.bottomRight.x, det.corners.bottomRight.y, det.cw, det.ch, vw, vh);
+                    const bl = this.mapearPuntoVideoAPantalla(det.corners.bottomLeft.x, det.corners.bottomLeft.y, det.cw, det.ch, vw, vh);
+
+                    const cx = (tl.x + tr.x + br.x + bl.x) * 0.25;
+                    const cy = (tl.y + tr.y + br.y + bl.y) * 0.25;
+                    const spanPx = Math.max(
+                        Math.hypot(tr.x - tl.x, tr.y - tl.y),
+                        Math.hypot(br.x - bl.x, br.y - bl.y),
+                        Math.hypot(bl.x - tl.x, bl.y - tl.y),
+                        28
+                    );
+
+                    const fovRad = THREE.MathUtils.degToRad(this.camera.fov);
+                    const fy = (vh * 0.5) / Math.tan(fovRad * 0.5);
+                    const depth = THREE.MathUtils.clamp((fy * this.tamanoFisicoQrMetros) / spanPx, 0.14, 1.25);
+
+                    const ndcX = (cx / vw) * 2 - 1;
+                    const ndcY = -(cy / vh) * 2 + 1;
+                    const halfH = depth * Math.tan(fovRad * 0.5);
+                    const halfW = halfH * this.camera.aspect;
+
+                    this.posAncladaFallback.set(ndcX * halfW, ndcY * halfH, -depth);
+
+                    const edgeDx = ((tr.x - tl.x) + (br.x - bl.x)) * 0.5;
+                    const edgeDy = ((tr.y - tl.y) + (br.y - bl.y)) * 0.5;
+                    this.yawQrAnclado = Math.atan2(-edgeDy, edgeDx);
+                    this.imuAlphaAnclaje = this.imuAlphaRad;
+
+                    this.framesEstablesHit++;
+                    if (this.framesEstablesHit >= 2) {
+                        this.ancladoDefinitivo = true;
+                        if (this.modeloListo && this.platoRoot) {
+                            this.platoRoot.visible = true;
+                            this.actualizarIndicadorUnico('anclado');
+                        }
                     }
-                    if (this.platoColocado && !this.qrVisibleAhora) {
-                        this.actualizarVistaCercanaSinQR();
-                    }
+                }
+            }
+
+            if (this.ancladoDefinitivo && this.platoRoot) {
+                const deltaAlpha = this.imuDisponible ? (this.imuAlphaRad - this.imuAlphaAnclaje) : 0;
+                const quat = this.calcularCuaternionMesaEstable(
+                    THREE.MathUtils.degToRad(42),
+                    this.yawQrAnclado - deltaAlpha
+                );
+                const zZoom = THREE.MathUtils.clamp(this.posAncladaFallback.z / this.zoomAcercamiento, -1.4, -0.07);
+                this.platoRoot.position.set(this.posAncladaFallback.x, this.posAncladaFallback.y, zZoom);
+                this.platoRoot.quaternion.slerp(quat, 0.25);
+                if (this.modeloListo) {
+                    this.platoRoot.visible = true;
                 }
             }
 
@@ -884,7 +929,7 @@ class AdbanaQRAREngine {
             }
         };
 
-        this.rafId = requestAnimationFrame(loop);
+        this.rafId = requestAnimationFrame(loopFallback);
     }
 
     finalizar() {
@@ -896,6 +941,19 @@ class AdbanaQRAREngine {
         window.removeEventListener('resize', this._onResizeBound);
         window.removeEventListener('deviceorientation', this._onDeviceOrientationBound, true);
 
+        if (this.xrHitTestSource) {
+            try {
+                this.xrHitTestSource.cancel();
+            } catch (e) {}
+            this.xrHitTestSource = null;
+        }
+        if (this.xrSession) {
+            const s = this.xrSession;
+            this.xrSession = null;
+            try {
+                s.end().catch(() => {});
+            } catch (e) {}
+        }
         if (this.stream) {
             try {
                 for (const track of this.stream.getTracks()) {
@@ -913,6 +971,10 @@ class AdbanaQRAREngine {
         }
         if (this.renderer) {
             try {
+                this.renderer.setAnimationLoop(null);
+                if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+                    this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+                }
                 this.renderer.dispose();
             } catch (e) {}
             this.renderer = null;
@@ -932,6 +994,8 @@ class AdbanaQRAREngine {
         this.platoRoot = null;
         this.platoPivot = null;
         this.platoMesh = null;
+        this.reticulaMesh = null;
+        this.modoXR = false;
     }
 }
 
