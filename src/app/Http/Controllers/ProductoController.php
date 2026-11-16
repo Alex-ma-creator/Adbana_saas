@@ -17,7 +17,19 @@ class ProductoController extends Controller
 {
     public function index(Request $request)
     {
-        $productos = Producto::with(['categoria:id,nombre', 'receta.insumo'])->when($request->boolean('venta'), fn ($q) => $q->where('es_insumo', false))->when($request->filled('categoria_id'), fn ($q) => $q->where('categoria_id', $request->integer('categoria_id')))->when($request->filled('q'), fn ($q) => $q->whereLike('nombre', '%'.$request->input('q').'%'))->orderBy('nombre')->paginate(20);
+        $request->validate([
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = $request->integer('per_page', 20);
+
+        $productos = Producto::with(['categoria:id,nombre', 'receta.insumo'])
+            ->when($request->boolean('venta'), fn ($q) => $q->where('es_insumo', false))
+            ->when($request->filled('categoria_id'), fn ($q) => $q->where('categoria_id', $request->integer('categoria_id')))
+            ->when($request->filled('q'), fn ($q) => $q->whereLike('nombre', '%'.$request->input('q').'%'))
+            ->orderBy('nombre')
+            ->paginate($perPage);
+
         if (! $request->user()->tienePermiso('productos')) {
             $productos->getCollection()->each->makeHidden(['costo', 'receta']);
         }
@@ -41,7 +53,13 @@ class ProductoController extends Controller
         $producto = DB::transaction(function () use ($request, $datos) {
             $producto = Producto::create($datos);
             if (($datos['stock'] ?? 0) > 0) {
-                MovimientoStock::create(['producto_id' => $producto->id, 'user_id' => $request->user()->id, 'tipo' => 'entrada', 'cantidad' => $datos['stock'], 'motivo' => 'stock_inicial']);
+                MovimientoStock::create([
+                    'producto_id' => $producto->id,
+                    'user_id'     => $request->user()->id,
+                    'tipo'        => 'entrada',
+                    'cantidad'    => $datos['stock'],
+                    'motivo'      => 'stock_inicial',
+                ]);
             }
 
             return $producto;
@@ -72,7 +90,10 @@ class ProductoController extends Controller
     public function destroy(string $id)
     {
         $producto = Producto::findOrFail($id);
-        if (DB::table('consumos_pedido')->where('producto_id', $producto->id)->exists() || Receta::where('insumo_id', $producto->id)->exists() || $producto->receta()->exists() || DetallePedido::where('producto_id', $producto->id)->exists()) {
+        if (DB::table('consumos_pedido')->where('producto_id', $producto->id)->exists()
+            || Receta::where('insumo_id', $producto->id)->exists()
+            || $producto->receta()->exists()
+            || DetallePedido::where('producto_id', $producto->id)->exists()) {
             return response()->json(['message' => 'El producto tiene pedidos. Desactívalo en vez de eliminarlo.'], 409);
         }
         $producto->delete();
@@ -91,7 +112,21 @@ class ProductoController extends Controller
     private function validar(Request $request, bool $parcial = false): array
     {
         $obligatorio = $parcial ? 'sometimes' : 'required';
-        $reglas = ['imagen' => ['nullable', 'string', 'max:255', 'regex:~^(https://[^\\s]+|/(?!/)[^\\s]*)$~'], 'modelo_3d' => ['nullable', 'string', 'max:255', 'regex:~^(https://[^\\s]+|/(?!/)[^\\s]*)\\.glb$~'], 'requiere_cocina' => ['sometimes', 'boolean'], 'es_insumo' => ['sometimes', 'boolean'], 'unidad' => ['sometimes', 'string', 'max:20'], 'categoria_id' => ['nullable', Rule::exists('categorias', 'id')->where('restaurante_id', $request->user()->restaurante_id)], 'nombre' => [$obligatorio, 'string', 'max:150'], 'descripcion' => ['nullable', 'string', 'max:1000'], 'precio' => [$obligatorio, 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'], 'costo' => ['sometimes', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'], 'stock_minimo' => ['sometimes', 'integer', 'min:0'], 'activo' => ['sometimes', 'boolean'], 'stock' => $parcial ? ['prohibited'] : ['sometimes', 'integer', 'min:0']];
+        $reglas = [
+            'imagen'          => ['nullable', 'string', 'max:255', 'regex:~^(https://[^\\s]+|/(?!/)[^\\s]*)$~'],
+            'modelo_3d'       => ['nullable', 'string', 'max:255', 'regex:~^(https://[^\\s]+|/(?!/)[^\\s]*)\\.glb$~'],
+            'requiere_cocina' => ['sometimes', 'boolean'],
+            'es_insumo'       => ['sometimes', 'boolean'],
+            'unidad'          => ['sometimes', 'string', 'max:20'],
+            'categoria_id'    => ['nullable', Rule::exists('categorias', 'id')->where('restaurante_id', $request->user()->restaurante_id)],
+            'nombre'          => [$obligatorio, 'string', 'max:150'],
+            'descripcion'     => ['nullable', 'string', 'max:1000'],
+            'precio'          => [$obligatorio, 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
+            'costo'           => ['sometimes', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
+            'stock_minimo'    => ['sometimes', 'integer', 'min:0'],
+            'activo'          => ['sometimes', 'boolean'],
+            'stock'           => $parcial ? ['prohibited'] : ['sometimes', 'integer', 'min:0'],
+        ];
 
         $reglas['foto'] = ['sometimes', 'required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', 'dimensions:max_width=6000,max_height=6000'];
         $datos = $request->validate($reglas, ['stock.prohibited' => 'El stock se cambia desde /api/stock/movimientos.']);

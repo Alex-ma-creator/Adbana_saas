@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Categoria;
+use App\Models\CuentaMesa;
 use App\Models\DetallePedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
@@ -22,7 +23,9 @@ class CartaController extends Controller
 {
     public function mostrar(Request $request, string $slug)
     {
-        abort_unless(Restaurante::where('slug', $slug)->where('activo', true)->exists(), 404);
+        $restauranteInfo = $this->restauranteActivo($slug);
+        $restauranteId = $restauranteInfo['id'];
+
         $carta = Cache::remember("carta:$slug", 60, function () use ($slug) {
             $restaurante = Restaurante::where('slug', $slug)->where('activo', true)->first();
 
@@ -62,7 +65,7 @@ class CartaController extends Controller
                     $menu[] = [
                         'id' => null,
                         'nombre' => 'Otros',
-                        'productos' => $this->formatear($sinCategoria, $restaurante->slug),
+                     'productos' => $this->formatear($sinCategoria, $restaurante->slug),
                     ];
                 }
 
@@ -79,9 +82,27 @@ class CartaController extends Controller
         });
 
         abort_if($carta === null, 404);
+
+        $activas = Mesa::withoutGlobalScopes()
+            ->where('restaurante_id', $restauranteId)
+            ->where('activa', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'codigo']);
+
+        $ocupadas = CuentaMesa::withoutGlobalScopes()
+            ->where('restaurante_id', $restauranteId)
+            ->where('abierta', 1)
+            ->pluck('mesa_key')
+            ->all();
+
+        $carta['mesas'] = $activas->map(fn ($m) => [
+            'id' => $m->id,
+            'nombre' => $m->nombre,
+            'ocupada' => in_array(mb_strtolower($m->nombre), $ocupadas, true),
+        ])->values()->all();
+
         if ($request->filled('mesa')) {
             $request->validate(['mesa' => ['uuid']]);
-            $restauranteId = Restaurante::where('slug', $slug)->where('activo', true)->value('id');
             $mesa = Mesa::withoutGlobalScopes()->where('restaurante_id', $restauranteId)->where('codigo', $request->string('mesa'))->where('activa', true)->firstOrFail();
             $carta['mesa'] = ['nombre' => $mesa->nombre, 'codigo' => $mesa->codigo];
         }
@@ -91,12 +112,12 @@ class CartaController extends Controller
 
     public function crearPedido(Request $request, string $slug)
     {
-        $restaurante = Restaurante::where('slug', $slug)->where('activo', true)->firstOrFail();
+        $restaurante = $this->restauranteActivo($slug);
 
         $datos = $request->validate([
             'clave_operacion' => ['required', 'uuid'],
             'cliente_nombre' => ['required', 'string', 'max:120'],
-            'cliente_telefono' => ['required_if:tipo,delivery', 'nullable', 'string', 'max:30'],
+            'cliente_telefono' => ['required_if:tipo,delivery', 'nullable', 'string', 'max:30', 'regex:/^[0-9]+$/D'],
             'tipo' => ['required', 'in:mesa,delivery,recojo'],
             'mesa' => ['required_if:tipo,mesa', 'nullable', 'string', 'max:20'],
             'direccion' => ['required_if:tipo,delivery', 'nullable', 'string', 'max:255'],
@@ -104,7 +125,7 @@ class CartaController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.producto_id' => ['required', 'integer'],
             'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:100'],
-        ]);
+        ], ['cliente_telefono.regex' => 'El teléfono solo puede contener números.']);
 
         // Une productos repetidos y los ordena por id (evita bloqueos cruzados entre pedidos).
         $cantidades = collect($datos['items'])
@@ -118,50 +139,76 @@ class CartaController extends Controller
             ]);
         }
 
-        $pedido = app(RestauranteContexto::class)->ejecutar($restaurante->id, function () use ($datos, $restaurante, $cantidades) {
+        $pedido = app(RestauranteContexto::class)->ejecutar($restaurante['id'], function () use ($datos, $restaurante, $cantidades) {
             return app(PedidoPublicoIdempotente::class)->ejecutar(
-                $restaurante->id, $datos['clave_operacion'], $datos,
+                $restaurante['id'], $datos['clave_operacion'], $datos,
                 function () use ($datos, $restaurante, $cantidades) {
-                    $modalidades = $restaurante->configuracion['modalidades'] ?? ['mesa', 'recojo', 'delivery'];
+                    $modalidades = $restaurante['configuracion']['modalidades'] ?? ['mesa', 'recojo', 'delivery'];
                     if (! in_array($datos['tipo'], $modalidades, true)) {
                         throw ValidationException::withMessages(['tipo' => 'El restaurante no ofrece esta modalidad.']);
                     }
+
                     $productos = Producto::where('activo', true)->where('es_insumo', false)->whereIn('id', $cantidades->keys())
-                        ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                        ->orderBy('id')->lockForUpdate()
+                        ->get(['id', 'nombre', 'precio', 'costo', 'stock', 'requiere_cocina'])
+                        ->keyBy('id');
                     if ($productos->count() !== $cantidades->count()) {
                         throw ValidationException::withMessages(['items' => 'Hay productos que ya no están disponibles.']);
                     }
+
                     $cuenta = $datos['tipo'] === 'mesa' ? app(CuentasMesa::class)->abrir($datos['mesa']) : null;
-                    $pedido = Pedido::create(collect($datos)->except(['items', 'clave_operacion'])->all() + [
-                        'restaurante_id' => $restaurante->id, 'estado' => 'pendiente', 'total' => 0, 'cuenta_id' => $cuenta?->id,
-                    ]);
-                    $costos = app(InventarioPedido::class)->descontar($pedido, $cantidades, null, 'pedido');
-                    $total = 0;
+
+                    $totalCents = 0;
                     foreach ($cantidades as $productoId => $cantidad) {
                         $producto = $productos[$productoId];
                         $subtotal = Money::cents($producto->precio) * $cantidad;
-                        $total += $subtotal;
-                        if ($total > 9999999999) {
+                        $totalCents += $subtotal;
+                        if ($totalCents > 9999999999) {
                             throw ValidationException::withMessages(['items' => 'El total excede el máximo permitido.']);
                         }
-                        DetallePedido::create([
-                            'pedido_id' => $pedido->id, 'producto_id' => $producto->id,
-                            'nombre_producto' => $producto->nombre, 'cantidad' => $cantidad,
-                            'precio_unitario' => $producto->precio, 'costo_unitario' => $costos[$productoId], 'requiere_cocina' => $producto->requiere_cocina,
-                            'subtotal' => Money::decimal($subtotal),
-                        ]);
                     }
-                    $pedido->update(['total' => Money::decimal($total)]);
 
-                    return $pedido->load('detalles');
+                    $pedido = Pedido::create(collect($datos)->except(['items', 'clave_operacion'])->all() + [
+                        'restaurante_id' => $restaurante['id'],
+                        'estado'         => 'pendiente',
+                        'total'          => Money::decimal($totalCents),
+                        'cuenta_id'      => $cuenta?->id,
+                    ]);
+
+                    $costos = app(InventarioPedido::class)->descontar($pedido, $cantidades, null, 'pedido', $productos);
+
+                    $ahora = now();
+                    $detallesInsert = [];
+                    $detallesModelos = [];
+
+                    foreach ($cantidades as $productoId => $cantidad) {
+                        $producto = $productos[$productoId];
+                        $subtotal = Money::decimal(Money::cents($producto->precio) * $cantidad);
+                        $fila = [
+                            'pedido_id'       => $pedido->id,
+                            'producto_id'     => $producto->id,
+                            'nombre_producto' => $producto->nombre,
+                            'cantidad'        => $cantidad,
+                            'precio_unitario' => $producto->precio,
+                            'costo_unitario'  => $costos[$productoId],
+                            'requiere_cocina' => (bool) $producto->requiere_cocina,
+                            'subtotal'        => $subtotal,
+                            'created_at'      => $ahora,
+                            'updated_at'      => $ahora,
+                        ];
+                        $detallesInsert[] = $fila;
+                        $detallesModelos[] = (new DetallePedido())->forceFill($fila);
+                    }
+
+                    DetallePedido::insert($detallesInsert);
+
+                    return $pedido->setRelation('detalles', collect($detallesModelos));
                 }
             );
         });
 
-        Cache::forget("carta:$slug");
-
         return response()->json([
-            'seguimiento_token' => Crypt::encryptString(json_encode(['pedido_id' => $pedido->id, 'restaurante_id' => $restaurante->id, 'expira' => now()->addDays(2)->timestamp], JSON_THROW_ON_ERROR)),
+            'seguimiento_token' => Crypt::encryptString(json_encode(['pedido_id' => $pedido->id, 'restaurante_id' => $restaurante['id'], 'expira' => now()->addDays(2)->timestamp], JSON_THROW_ON_ERROR)),
             'pedido_id' => $pedido->id,
             'estado' => $pedido->estado,
             'total' => $pedido->total,
@@ -172,6 +219,25 @@ class CartaController extends Controller
                 'subtotal' => $d->subtotal,
             ]),
         ], 201);
+    }
+
+    /** @return array{id: int, configuracion: array<string, mixed>} */
+    private function restauranteActivo(string $slug): array
+    {
+        $cacheKey = "restaurante_pedido:$slug";
+        $restaurante = Cache::get($cacheKey);
+        if ($restaurante !== null) {
+            return $restaurante;
+        }
+
+        $modelo = Restaurante::where('slug', $slug)->where('activo', true)->firstOrFail(['id', 'configuracion']);
+        $restaurante = [
+            'id' => (int) $modelo->id,
+            'configuracion' => $modelo->configuracion ?? [],
+        ];
+        Cache::put($cacheKey, $restaurante, 300);
+
+        return $restaurante;
     }
 
     private function formatear($productos, string $slug): array

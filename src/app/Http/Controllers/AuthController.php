@@ -13,29 +13,61 @@ class AuthController extends Controller
 {
     public function registroDueno(Request $request)
     {
-        $datos = $request->validate(['restaurante' => ['required', 'string', 'max:120'], 'telefono' => ['nullable', 'string', 'max:30'], 'name' => ['required', 'string', 'max:120'], 'email' => ['required', 'email', 'max:255', 'unique:users,email'], 'password' => ['required', 'string', 'min:8']]);
+        $datos = $request->validate([
+            'restaurante' => ['required', 'string', 'max:120'],
+            'telefono'    => ['nullable', 'string', 'max:30'],
+            'name'        => ['required', 'string', 'max:120'],
+            'email'       => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password'    => ['required', 'string', 'min:8'],
+        ]);
+
         [$restaurante, $user] = DB::transaction(function () use ($datos) {
-            $restaurante = Restaurante::create(['nombre' => $datos['restaurante'], 'slug' => $this->slugUnico($datos['restaurante']), 'telefono' => $datos['telefono'] ?? null]);
-            $user = User::create(['restaurante_id' => $restaurante->id, 'name' => $datos['name'], 'email' => $datos['email'], 'password' => $datos['password'], 'rol' => 'dueno']);
+            $restaurante = Restaurante::create([
+                'nombre'   => $datos['restaurante'],
+                'slug'     => $this->slugUnico($datos['restaurante']),
+                'telefono' => $datos['telefono'] ?? null,
+            ]);
+            $user = User::create([
+                'restaurante_id' => $restaurante->id,
+                'name'           => $datos['name'],
+                'email'          => $datos['email'],
+                'password'       => $datos['password'],
+                'rol'            => 'dueno',
+            ]);
 
             return [$restaurante, $user];
         });
 
-        return response()->json(['token' => $user->createToken('panel', ['*'], now()->addMinutes(config('sanctum.expiration')))->plainTextToken, 'user' => $user->load('restaurante')->append('permisos'), 'restaurante' => $restaurante], 201);
+        $minutosExpiracion = (int) config('sanctum.expiration', 480);
+        $expira = $minutosExpiracion > 0 ? now()->addMinutes($minutosExpiracion) : null;
+
+        return response()->json([
+            'token'       => $user->createToken('panel', ['*'], $expira)->plainTextToken,
+            'expires_at'  => $expira?->toIso8601String(),
+            'user'        => $user->load('restaurante')->append('permisos'),
+            'restaurante' => $restaurante,
+        ], 201);
     }
 
     public function login(Request $request)
     {
-        $datos = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
+        $datos = $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
         $user = User::where('email', $datos['email'])->first();
         if (! $user || ! Hash::check($datos['password'], $user->password)) {
             return response()->json(['message' => 'Credenciales incorrectas.'], 401);
         }
-        if (! $user->activo || $user->restaurante && ! $user->restaurante->activo) {
+        if (! $user->activo || ($user->restaurante && ! $user->restaurante->activo)) {
             return response()->json(['message' => 'Cuenta desactivada.'], 403);
         }
 
-        return response()->json(['token' => DB::transaction(function () use ($user, $datos) {
+        $minutosExpiracion = (int) config('sanctum.expiration', 480);
+        $expira = $minutosExpiracion > 0 ? now()->addMinutes($minutosExpiracion) : null;
+
+        $token = DB::transaction(function () use ($user, $datos, $expira) {
             $actual = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             abort_unless($actual->activo && $actual->restaurante?->activo, 403);
             abort_unless(Hash::check($datos['password'], $actual->password), 401);
@@ -43,8 +75,14 @@ class AuthController extends Controller
             $conservar = $actual->tokens()->latest('id')->limit(9)->pluck('id');
             $actual->tokens()->whereNotIn('id', $conservar)->delete();
 
-            return $actual->createToken('panel', ['*'], now()->addMinutes(config('sanctum.expiration')))->plainTextToken;
-        }), 'user' => $user->load('restaurante')->append('permisos')]);
+            return $actual->createToken('panel', ['*'], $expira)->plainTextToken;
+        });
+
+        return response()->json([
+            'token'      => $token,
+            'expires_at' => $expira?->toIso8601String(),
+            'user'       => $user->load('restaurante')->append('permisos'),
+        ]);
     }
 
     public function me(Request $request)

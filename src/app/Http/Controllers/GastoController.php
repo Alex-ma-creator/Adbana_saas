@@ -13,7 +13,10 @@ class GastoController extends Controller
             'desde'     => ['sometimes', 'date'],
             'hasta'     => ['sometimes', 'date'],
             'categoria' => ['sometimes', 'string', 'max:50'],
+            'per_page'  => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
+
+        $perPage = $request->integer('per_page', 20);
 
         return Gasto::query()
             ->when($request->filled('desde'), fn ($q) => $q->whereDate('fecha', '>=', $request->input('desde')))
@@ -21,7 +24,12 @@ class GastoController extends Controller
             ->when($request->filled('categoria'), fn ($q) => $q->where('categoria', $request->input('categoria')))
             ->orderByDesc('fecha')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate($perPage);
+    }
+
+    public function show(string $id)
+    {
+        return Gasto::findOrFail($id);
     }
 
     public function store(Request $request)
@@ -37,5 +45,29 @@ class GastoController extends Controller
         $datos['user_id'] = $request->user()->id;
 
         return response()->json(Gasto::create($datos), 201);
+    }
+
+    public function update(Request $request, string $id)
+    {
+        $gasto = Gasto::findOrFail($id);
+
+        $datos = $request->validate([
+            'descripcion' => ['sometimes', 'required', 'string', 'max:255'],
+            'categoria'   => ['nullable', 'string', 'max:50'],
+            'monto'       => ['sometimes', 'required', 'numeric', 'min:0.01', 'max:99999999.99'],
+            'fecha'       => ['sometimes', 'required', 'date'],
+        ]);
+
+        $gasto->update($datos);
+
+        return response()->json($gasto);
+    }
+
+    public function destroy(string $id)
+    {
+        $gasto = Gasto::findOrFail($id);
+        $gasto->delete();
+
+        return response()->json(['message' => 'Gasto eliminado.']);
     }
 }

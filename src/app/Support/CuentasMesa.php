@@ -20,21 +20,34 @@ final class CuentasMesa
             throw ValidationException::withMessages(['mesa' => 'Indica la mesa.']);
         }
 
-        $registrada = Mesa::where('nombre_key', mb_strtolower($mesa))->lockForUpdate()->first();
+        $mesaKey = mb_strtolower($mesa);
+        $candidatos = array_values(array_unique([
+            $mesaKey,
+            'mesa '.$mesaKey,
+            'mesa '.ltrim($mesaKey, '0'),
+            'mesa '.str_pad($mesaKey, 2, '0', STR_PAD_LEFT),
+        ]));
+
+        $registrada = Mesa::whereIn('nombre_key', $candidatos)
+            ->lockForUpdate()
+            ->first();
 
         if ($registrada && ! $registrada->activa) {
 
             throw ValidationException::withMessages(['mesa' => 'Esta mesa está desactivada.']);
         }
 
-        if (! $registrada && Mesa::exists() && ! CuentaMesa::where('mesa_key', mb_strtolower($mesa))->where('abierta', 1)->exists()) {
+        if (! $registrada && Mesa::exists() && ! CuentaMesa::where('mesa_key', $mesaKey)->where('abierta', 1)->exists()) {
 
             throw ValidationException::withMessages(['mesa' => 'Selecciona una mesa registrada en la configuración.']);
         }
 
-        $identidad = ['restaurante_id' => app(RestauranteContexto::class)->id(), 'mesa_key' => mb_strtolower($mesa), 'abierta' => 1];
+        $nombreFinal = $registrada ? $registrada->nombre : $mesa;
+        $keyFinal = $registrada ? $registrada->nombre_key : $mesaKey;
 
-        DB::table('cuentas_mesa')->insertOrIgnore($identidad + ['mesa' => $mesa, 'created_at' => now(), 'updated_at' => now()]);
+        $identidad = ['restaurante_id' => app(RestauranteContexto::class)->id(), 'mesa_key' => $keyFinal, 'abierta' => 1];
+
+        DB::table('cuentas_mesa')->insertOrIgnore($identidad + ['mesa' => $nombreFinal, 'created_at' => now(), 'updated_at' => now()]);
 
         return CuentaMesa::where($identidad)->lockForUpdate()->firstOrFail();
 

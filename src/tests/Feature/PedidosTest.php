@@ -180,4 +180,21 @@ class PedidosTest extends TestCase
 
         $this->postJson("/api/carta/{$this->restaurante->slug}/pedidos", [])->assertStatus(429);
     }
+    public function test_telefono_rechaza_letras_y_simbolos_en_el_servidor(): void
+    {
+        $producto = $this->crearProducto($this->restaurante);
+        foreach (['abc', '999abc', '+51999999999', '999 999 999'] as $telefono) {
+            $this->pedir([['producto_id' => $producto->id, 'cantidad' => 1]], ['cliente_telefono' => $telefono])
+                ->assertUnprocessable()->assertJsonValidationErrors('cliente_telefono');
+        }
+        $this->assertDatabaseCount('pedidos', 0);
+    }
+
+    public function test_telefono_numerico_conserva_ceros_iniciales(): void
+    {
+        $producto = $this->crearProducto($this->restaurante);
+        $this->pedir([['producto_id' => $producto->id, 'cantidad' => 1]], ['cliente_telefono' => '01999999999'])->assertCreated();
+        $this->assertDatabaseHas('pedidos', ['cliente_telefono' => '01999999999']);
+    }
+
 }

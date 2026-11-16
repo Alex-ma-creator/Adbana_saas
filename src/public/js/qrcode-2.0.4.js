@@ -2261,7 +2261,7 @@ var qrcode = function() {
               0x80 | (charcode & 0x3f));
         }
         else if (charcode < 0xd800 || charcode >= 0xe000) {
-          utf8.push(0xe0 | (charcode >> 12),
+      utf8.push(0xe0 | (charcode >> 12),
               0x80 | ((charcode>>6) & 0x3f),
               0x80 | (charcode & 0x3f));
         }

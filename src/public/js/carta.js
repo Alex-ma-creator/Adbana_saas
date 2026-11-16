@@ -1,5 +1,13 @@
 const ADBANA_I18N_CARTA = {
     es: {
+        pedir_plato: "Pedir plato",
+        detalles_plato: "Ver detalles",
+        ver_plato: "Ver plato",
+        en_tu_pedido: "en tu pedido",
+        cargando_modelo: "Cargando vista 3D…",
+        error_modelo: "No pudimos cargar el modelo 3D. Cierra la ficha y vuelve a intentarlo. Puedes seguir pidiendo con la foto.",
+        guia_modelo: "Arrastra para girar el plato.",
+        cerrar: "Cerrar",
         titulo_carta: 'Carta',
         cambiar_idioma: 'Cambiar idioma',
         cargando_carta: 'Cargando carta…',
@@ -27,10 +35,14 @@ const ADBANA_I18N_CARTA = {
         opt_delivery: 'Delivery',
         opt_mesa: 'En mesa',
         num_mesa: 'Número de mesa',
+        sel_mesa: '-- Selecciona tu mesa --',
+        mesa_disponible: 'Disponible',
+        mesa_ocupada: 'Ocupada',
+        err_mesa_ocupada: 'La mesa seleccionada ya está ocupada.',
         dir_entrega: 'Dirección de entrega',
         telefono: 'Teléfono',
-        opcional: '(opcional)',
-        notas_rest: 'Notas para el restaurante (opcional)',
+        opcional: 'Opcional',
+        notas_rest: 'Notas para el restaurante · Opcional',
         enviando: 'Enviando…',
         enviar_pedido: 'Enviar pedido',
         seguir_viendo: 'Seguir viendo la carta',
@@ -45,6 +57,7 @@ const ADBANA_I18N_CARTA = {
         err_carga: 'No pudimos cargar la carta. Revisa tu conexión e intenta de nuevo.',
         val_nombre: 'Escribe tu nombre.',
         val_telefono: 'Escribe un teléfono de contacto.',
+        val_telefono_digitos: 'El teléfono solo puede contener números.',
         val_direccion: 'Escribe la dirección de entrega.',
         val_mesa: 'Indica el número de mesa.',
         val_items: 'Agrega al menos un producto.',
@@ -57,6 +70,14 @@ const ADBANA_I18N_CARTA = {
         wa_por: ' por ',
     },
     en: {
+        pedir_plato: "Order dish",
+        detalles_plato: "View details",
+        ver_plato: "View dish",
+        en_tu_pedido: "in your order",
+        cargando_modelo: "Loading 3D view…",
+        error_modelo: "We could not load the 3D model. Close these details and try again. You can still order using the photo.",
+        guia_modelo: "Drag to rotate the dish.",
+        cerrar: "Close",
         titulo_carta: 'Menu',
         cambiar_idioma: 'Change language',
         cargando_carta: 'Loading menu…',
@@ -84,6 +105,10 @@ const ADBANA_I18N_CARTA = {
         opt_delivery: 'Delivery',
         opt_mesa: 'Dine-in (at table)',
         num_mesa: 'Table number',
+        sel_mesa: '-- Select your table --',
+        mesa_disponible: 'Available',
+        mesa_ocupada: 'Occupied',
+        err_mesa_ocupada: 'The selected table is currently occupied.',
         dir_entrega: 'Delivery address',
         telefono: 'Phone',
         opcional: '(optional)',
@@ -102,6 +127,7 @@ const ADBANA_I18N_CARTA = {
         err_carga: 'We could not load the menu. Check your connection and try again.',
         val_nombre: 'Please enter your name.',
         val_telefono: 'Please enter a contact phone number.',
+        val_telefono_digitos: 'The phone number must contain digits only.',
         val_direccion: 'Please enter the delivery address.',
         val_mesa: 'Please enter your table number.',
         val_items: 'Add at least one item.',
@@ -114,6 +140,14 @@ const ADBANA_I18N_CARTA = {
         wa_por: ' for ',
     },
     pt: {
+        pedir_plato: "Pedir prato",
+        detalles_plato: "Ver detalhes",
+        ver_plato: "Ver prato",
+        en_tu_pedido: "no seu pedido",
+        cargando_modelo: "Carregando vista 3D…",
+        error_modelo: "Não foi possível carregar o modelo 3D. Feche os detalhes e tente novamente. Você pode continuar pedindo pela foto.",
+        guia_modelo: "Arraste para girar o prato.",
+        cerrar: "Fechar",
         titulo_carta: 'Cardápio',
         cambiar_idioma: 'Alterar idioma',
         cargando_carta: 'Carregando cardápio…',
@@ -141,9 +175,13 @@ const ADBANA_I18N_CARTA = {
         opt_delivery: 'Delivery',
         opt_mesa: 'Na mesa',
         num_mesa: 'Número da mesa',
+        sel_mesa: '-- Selecione a sua mesa --',
+        mesa_disponible: 'Disponível',
+        mesa_ocupada: 'Ocupada',
+        err_mesa_ocupada: 'A mesa selecionada já está ocupada.',
         dir_entrega: 'Endereço de entrega',
         telefono: 'Telefone',
-        opcional: '(opcional)',
+        opcional: 'Opcional',
         notas_rest: 'Observações para o restaurante (opcional)',
         enviando: 'Enviando…',
         enviar_pedido: 'Enviar pedido',
@@ -159,6 +197,7 @@ const ADBANA_I18N_CARTA = {
         err_carga: 'Não foi possível carregar o cardápio. Verifique sua conexão e tente novamente.',
         val_nombre: 'Digite seu nome.',
         val_telefono: 'Digite um telefone de contato.',
+        val_telefono_digitos: 'O telefone deve conter apenas números.',
         val_direccion: 'Digite o endereço de entrega.',
         val_mesa: 'Informe o número da mesa.',
         val_items: 'Adicione pelo menos um produto.',
@@ -171,6 +210,14 @@ const ADBANA_I18N_CARTA = {
         wa_por: ' no valor de ',
     },
     fr: {
+        pedir_plato: "Commander",
+        detalles_plato: "Voir les détails",
+        ver_plato: "Voir le plat",
+        en_tu_pedido: "dans votre commande",
+        cargando_modelo: "Chargement de la vue 3D…",
+        error_modelo: "Le modèle 3D n’a pas pu être chargé. Fermez la fiche et réessayez. Vous pouvez commander avec la photo.",
+        guia_modelo: "Faites glisser pour tourner le plat.",
+        cerrar: "Fermer",
         titulo_carta: 'Menu',
         cambiar_idioma: 'Changer de langue',
         cargando_carta: 'Chargement du menu…',
@@ -198,6 +245,10 @@ const ADBANA_I18N_CARTA = {
         opt_delivery: 'Livraison',
         opt_mesa: 'Sur place (à table)',
         num_mesa: 'Numéro de table',
+        sel_mesa: '-- Sélectionnez votre table --',
+        mesa_disponible: 'Disponible',
+        mesa_ocupada: 'Occupée',
+        err_mesa_ocupada: 'La table sélectionnée est déjà occupée.',
         dir_entrega: 'Adresse de livraison',
         telefono: 'Téléphone',
         opcional: '(facultatif)',
@@ -216,6 +267,7 @@ const ADBANA_I18N_CARTA = {
         err_carga: 'Impossible de charger le menu. Vérifiez votre connexion et réessayez.',
         val_nombre: 'Veuillez saisir votre nom.',
         val_telefono: 'Veuillez saisir un numéro de téléphone.',
+        val_telefono_digitos: 'Le téléphone doit contenir uniquement des chiffres.',
         val_direccion: 'Veuillez saisir l’adresse de livraison.',
         val_mesa: 'Veuillez indiquer le numéro de table.',
         val_items: 'Ajoutez au moins un produit.',
@@ -250,12 +302,30 @@ document.addEventListener('alpine:init', () => {
             error: '',
             restaurante: null,
             categorias: [],
+            categoriaSeleccionada: null,
+            detalleActivo: null,
+            estadoModelo: 'cargando',
+            get categoriaActual() {
+                return this.categorias.find(c => String(c.id ?? 'otros') === this.categoriaSeleccionada) || this.categorias[0] || null;
+            },
+            get categoriasVisibles() { return this.categoriaActual ? [this.categoriaActual] : []; },
             carrito: {},
             abierto: false,
             enviando: false,
             errores: [],
             pedido: null,
             nombrePedido: '',
+            modalAR: false,
+            platoARSeleccionado: null,
+            mensajeT5SinAR: false,
+            avisoGuiaAR: false,
+            ancladoFijo: false,
+            trackingPerdido: false,
+            visorARActivo: null,
+            _timerGuiaAR: null,
+            _timerBloqueoAR: null,
+            mesas: [],
+            datosMesaNombre: null,
             form: {
                 cliente_nombre: '',
                 cliente_telefono: '',
@@ -285,6 +355,256 @@ document.addEventListener('alpine:init', () => {
                 if (this.restaurante) {
                     document.title = this.restaurante.nombre + ' | ' + this.t('titulo_carta');
                 }
+            },
+
+            get urlARParaCelular() {
+                const cfgUrl = (window.ADBANA_CONFIG && (window.ADBANA_CONFIG.arPublicUrl || window.ADBANA_CONFIG.arPublicBaseUrl))
+                    ? String(window.ADBANA_CONFIG.arPublicUrl || window.ADBANA_CONFIG.arPublicBaseUrl).replace(/\/+$/, '')
+                    : '';
+                const base = cfgUrl || window.location.origin;
+                return base + '/c/' + encodeURIComponent(this.slug);
+            },
+
+            obtenerIosSrc(p) {
+                if (!p || !p.modelo_3d) return '';
+                const raw = String(p.modelo_3d).split('?')[0];
+                if (/\.glb$/i.test(raw)) {
+                    return raw.replace(/\.glb$/i, '.usdz') + '?v=ar8#allowsContentScaling=0';
+                }
+                const nombre = String(p.nombre || '').toLowerCase();
+                if (nombre.includes('pizza')) return '/demo-ar/models/pizza.usdz?v=ar8#allowsContentScaling=0';
+                if (nombre.includes('hamburguesa') || nombre.includes('burger')) return '/demo-ar/models/hamburguesa.usdz?v=ar8#allowsContentScaling=0';
+                if (nombre.includes('brocheta') || nombre.includes('anticucho') || nombre.includes('parrilla')) return '/demo-ar/models/brocheta.usdz?v=ar8#allowsContentScaling=0';
+                return '';
+            },
+
+            normalizarEscalaReal(elViewer, p) {
+                if (!elViewer || typeof elViewer.getDimensions !== 'function') return;
+                try {
+                    const dim = elViewer.getDimensions();
+                    if (!dim) return;
+                    const maxHoriz = Math.max(dim.x || 0, dim.z || 0);
+                    if (maxHoriz <= 0) return;
+
+                    const nombre = ((p && p.nombre) ? String(p.nombre) : '').toLowerCase();
+                    let objetivoMetros = 0.25;
+                    if (nombre.includes('pizza')) {
+                        objetivoMetros = 0.35;
+                    } else if (nombre.includes('hamburguesa') || nombre.includes('burger')) {
+                        objetivoMetros = 0.14;
+                    } else if (nombre.includes('brocheta') || nombre.includes('anticucho') || nombre.includes('parrilla')) {
+                        objetivoMetros = 0.25;
+                    }
+
+                    // Solo ajustamos si el modelo subido viene fuera de escala métrica real (< 6cm o > 50cm)
+                    if (maxHoriz < 0.06 || maxHoriz > 0.50) {
+                        const factor = Number((objetivoMetros / maxHoriz).toFixed(4));
+                        elViewer.scale = `${factor} ${factor} ${factor}`;
+                        if (typeof elViewer.updateFraming === 'function') {
+                            elViewer.updateFraming();
+                        }
+                    }
+                } catch (e) {}
+            },
+
+            parchearPlanoCercanoXR(elViewer) {
+                const viewer = elViewer || this.visorARActivo;
+                if (!viewer || typeof Object.getOwnPropertySymbols !== 'function') return;
+                try {
+                    const symbols = Object.getOwnPropertySymbols(viewer);
+                    for (const sym of symbols) {
+                        const val = viewer[sym];
+                        if (!val || typeof val !== 'object') continue;
+
+                        // Parchear cámara interna de Three.js (ModelScene)
+                        if (val.camera && typeof val.camera.updateProjectionMatrix === 'function') {
+                            val.camera.near = 0.01;
+                            val.camera.updateProjectionMatrix();
+                        }
+                        if (val.xrCamera && typeof val.xrCamera.updateProjectionMatrix === 'function') {
+                            val.xrCamera.near = 0.01;
+                            val.xrCamera.updateProjectionMatrix();
+                        }
+
+                        // Parchear WebXRManager y XRSession (depthNear: 0.01, depthFar: 20.0)
+                        const candidatosRenderer = [
+                            val.threeRenderer,
+                            val.renderer && val.renderer.threeRenderer,
+                            val.arRenderer && val.arRenderer.threeRenderer,
+                            val,
+                        ];
+                        for (const r of candidatosRenderer) {
+                            if (!r || !r.xr) continue;
+                            if (typeof r.xr.getSession === 'function') {
+                                const session = r.xr.getSession();
+                                if (session && typeof session.updateRenderState === 'function') {
+                                    session.updateRenderState({ depthNear: 0.01, depthFar: 20.0 });
+                                }
+                            }
+                            if (typeof r.xr.getCamera === 'function') {
+                                const xrCam = r.xr.getCamera();
+                                if (xrCam) {
+                                    xrCam.near = 0.01;
+                                    if (typeof xrCam.updateProjectionMatrix === 'function') {
+                                        xrCam.updateProjectionMatrix();
+                                    }
+                                    if (Array.isArray(xrCam.cameras)) {
+                                        for (const subCam of xrCam.cameras) {
+                                            if (subCam) {
+                                                subCam.near = 0.01;
+                                                if (typeof subCam.updateProjectionMatrix === 'function') {
+                                                    subCam.updateProjectionMatrix();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {}
+            },
+
+            actualizarEstadoAR(ev, elViewer) {
+                const status = ev && ev.detail ? ev.detail.status : '';
+                const viewer = elViewer || (ev && ev.target) || this.visorARActivo;
+                if (viewer) this.visorARActivo = viewer;
+
+                if (status === 'session-started') {
+                    if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                    this.ancladoFijo = false;
+                    this.trackingPerdido = false;
+                    this.parchearPlanoCercanoXR(viewer);
+                } else if (status === 'object-placed') {
+                    this.trackingPerdido = false;
+                    this.parchearPlanoCercanoXR(viewer);
+                    if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                    this._timerBloqueoAR = setTimeout(() => {
+                        this.ancladoFijo = true;
+                        this.parchearPlanoCercanoXR(viewer);
+                    }, 400);
+                } else if (status === 'not-presenting' || status === 'failed') {
+                    if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                    this.ancladoFijo = false;
+                    this.trackingPerdido = false;
+                }
+            },
+
+            actualizarTrackingAR(ev, elViewer) {
+                const status = ev && ev.detail ? ev.detail.status : '';
+                const viewer = elViewer || (ev && ev.target) || this.visorARActivo;
+                if (viewer) this.visorARActivo = viewer;
+
+                if (status === 'not-tracking') {
+                    this.trackingPerdido = true;
+                    this.parchearPlanoCercanoXR(viewer);
+                } else if (status === 'tracking') {
+                    this.trackingPerdido = false;
+                    this.parchearPlanoCercanoXR(viewer);
+                }
+            },
+
+            alternarAnclajePlato() {
+                if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                this.ancladoFijo = !this.ancladoFijo;
+                this.parchearPlanoCercanoXR(this.visorARActivo);
+            },
+
+            recentrarPlatoEnMesa() {
+                if (this._timerBloqueoAR) clearTimeout(this._timerBloqueoAR);
+                this.ancladoFijo = false;
+                this.trackingPerdido = false;
+                this.parchearPlanoCercanoXR(this.visorARActivo);
+            },
+
+            mostrarGuiaAR() {
+                this.avisoGuiaAR = true;
+                if (this._timerGuiaAR) clearTimeout(this._timerGuiaAR);
+                this._timerGuiaAR = setTimeout(() => {
+                    this.avisoGuiaAR = false;
+                }, 6500);
+            },
+
+            redireccionarHttpsMovilSiNecesario() {
+                const ua = navigator.userAgent || '';
+                const esIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                const esAndroid = /Android/i.test(ua);
+                const esMovil = esIOS || esAndroid;
+                const cfgBase = (window.ADBANA_CONFIG && (window.ADBANA_CONFIG.arPublicUrl || window.ADBANA_CONFIG.arPublicBaseUrl))
+                    ? String(window.ADBANA_CONFIG.arPublicUrl || window.ADBANA_CONFIG.arPublicBaseUrl).replace(/\/+$/, '')
+                    : '';
+                if (esMovil && window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && cfgBase) {
+                    window.location.href = cfgBase + '/c/' + encodeURIComponent(this.slug);
+                    return true;
+                }
+                return false;
+            },
+
+            async abrirAR(p, elViewer) {
+                if (this.redireccionarHttpsMovilSiNecesario()) return;
+
+                const ua = navigator.userAgent || '';
+                const esIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                const esAndroid = /Android/i.test(ua);
+                const esMovil = esIOS || esAndroid;
+
+                this.mensajeT5SinAR = false;
+                this.trackingPerdido = false;
+                this.ancladoFijo = false;
+
+                if (elViewer && typeof elViewer.activateAR === 'function') {
+                    this.visorARActivo = elViewer;
+                    elViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+                    this.mostrarGuiaAR();
+                    try {
+                        await elViewer.activateAR();
+                        this.parchearPlanoCercanoXR(elViewer);
+                        return;
+                    } catch (e) {}
+                }
+
+                const dialogo = elViewer?.closest?.('dialog');
+                if (dialogo?.open) dialogo.close();
+                this.platoARSeleccionado = p;
+                this.mensajeT5SinAR = esMovil;
+                this.modalAR = true;
+            },
+
+            async abrirARNativo(p, elViewer) {
+                if (this.redireccionarHttpsMovilSiNecesario()) return;
+
+                this.mensajeT5SinAR = false;
+                this.trackingPerdido = false;
+                this.ancladoFijo = false;
+
+                if (elViewer && typeof elViewer.activateAR === 'function') {
+                    this.visorARActivo = elViewer;
+                    const modosPrevios = elViewer.getAttribute('ar-modes') || 'webxr scene-viewer quick-look';
+                    elViewer.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
+                    this.mostrarGuiaAR();
+                    try {
+                        await elViewer.activateAR();
+                        setTimeout(() => {
+                            elViewer.setAttribute('ar-modes', modosPrevios);
+                        }, 1200);
+                        return;
+                    } catch (e) {
+                        elViewer.setAttribute('ar-modes', modosPrevios);
+                    }
+                }
+
+                const ua = navigator.userAgent || '';
+                if (/Android/i.test(ua) && p && p.modelo_3d) {
+                    const fileUrl = new URL(p.modelo_3d, window.location.origin).href;
+                    const title = encodeURIComponent(p.nombre || 'Plato 3D');
+                    const intentUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(fileUrl)}&mode=ar_preferred&resizable=false&title=${title}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(window.location.href)};end;`;
+                    window.location.href = intentUrl;
+                    return;
+                }
+
+                this.platoARSeleccionado = p;
+                this.mensajeT5SinAR = false;
+                this.modalAR = true;
             },
 
             async consultarBackend(url, opciones) {
@@ -324,7 +644,17 @@ document.addEventListener('alpine:init', () => {
                     const modos=datos.restaurante.configuracion?.modalidades || ['mesa','recojo','delivery'];
                     if(!modos.includes(this.form.tipo))this.form.tipo=modos[0];
                     this.categorias = datos.carta;
-                    if(datos.mesa && modos.includes('mesa')){this.form.tipo='mesa';this.form.mesa=datos.mesa.nombre;}
+                    this.mesas = datos.mesas || [];
+                    if (datos.mesa && modos.includes('mesa')) {
+                        this.datosMesaNombre = datos.mesa.nombre;
+                        this.form.tipo = 'mesa';
+                        this.form.mesa = datos.mesa.nombre;
+                    } else if (modos.includes('mesa') && !this.form.mesa && this.mesas.length > 0) {
+                        const primeraLibre = this.mesas.find(m => !m.ocupada);
+                        if (primeraLibre) {
+                            this.form.mesa = primeraLibre.nombre;
+                        }
+                    }
                     document.title = datos.restaurante.nombre + ' | ' + this.t('titulo_carta');
                     this.restaurarCarrito();
                     const pendiente = sessionStorage.getItem('pedido-pendiente:' + this.slug);
@@ -414,18 +744,60 @@ document.addEventListener('alpine:init', () => {
                 this.carrito = validos;
             },
 
+            abrirDetalles(plato, dialogo) {
+                this.detalleActivo = plato.id;
+                this.estadoModelo = 'cargando';
+                dialogo.showModal();
+            },
+
+            abrirPedido() {
+                this.abierto = true;
+                this.$nextTick(() => this.$refs.tituloPedido.focus());
+            },
+
+            cerrarPedido() {
+                this.abierto = false;
+                if (this.unidades > 0) this.$nextTick(() => this.$refs.barraPedido.focus());
+            },
+
+            atraparFocoPedido(event) {
+                const campos = Array.from(this.$refs.formPedido.querySelectorAll('button,input,select,textarea,a[href]'))
+                    .filter(el => !el.disabled && el.getClientRects().length);
+                if (!campos.length) return;
+                const primero = campos[0], ultimo = campos[campos.length - 1];
+                if (event.shiftKey && (event.target === primero || !campos.includes(event.target))) {
+                    event.preventDefault(); ultimo.focus();
+                } else if (!event.shiftKey && event.target === ultimo) {
+                    event.preventDefault(); primero.focus();
+                }
+            },
+
+            normalizarTelefono(valor) {
+                return String(valor ?? '').replace(/[^0-9]/g, '').slice(0, 30);
+            },
+
             validar() {
                 const f = this.form;
                 const faltan = [];
 
                 if (!f.cliente_nombre.trim()) faltan.push(this.t('val_nombre'));
+                if (f.cliente_telefono && !/^[0-9]{1,30}$/.test(f.cliente_telefono)) faltan.push(this.t('val_telefono_digitos'));
 
                 if (f.tipo === 'delivery') {
                     if (!f.cliente_telefono.trim()) faltan.push(this.t('val_telefono'));
                     if (!f.direccion.trim()) faltan.push(this.t('val_direccion'));
                 }
 
-                if (f.tipo === 'mesa' && !f.mesa.trim()) faltan.push(this.t('val_mesa'));
+                if (f.tipo === 'mesa') {
+                    if (!f.mesa.trim()) {
+                        faltan.push(this.t('val_mesa'));
+                    } else if (this.mesas.length > 0) {
+                        const mSel = this.mesas.find(m => m.nombre === f.mesa.trim());
+                        if (mSel && mSel.ocupada && (!this.datosMesaNombre || mSel.nombre !== this.datosMesaNombre)) {
+                            faltan.push(this.t('err_mesa_ocupada'));
+                        }
+                    }
+                }
                 if (this.unidades === 0) faltan.push(this.t('val_items'));
 
                 return faltan;
@@ -504,3 +876,4 @@ document.addEventListener('alpine:init', () => {
         };
     });
 });
+

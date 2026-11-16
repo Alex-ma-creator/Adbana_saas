@@ -1,6 +1,15 @@
 const ADBANA_I18N_PANEL = {
 
     es: {
+        cocina_para_llevar: 'Para llevar',
+        cocina_vacio: "Sin comandas",
+        cocina_preparando: "En preparación", cocina_nuevos: "Nuevos pedidos",
+        cocina_notas: "Observaciones",
+        cocina_imprimir: "Imprimir comanda",
+        cocina_sync: "Actualización cada 15 segundos",
+        cocina_pagina: "En esta página",
+        cocina_actualizada: "Última actualización",
+        cocina_sin_hora: "Sin hora",
 
         cliente_defecto: 'Venta mostrador',
 
@@ -24,7 +33,7 @@ const ADBANA_I18N_PANEL = {
 
         lbl_restaurante: 'Nombre del restaurante', lbl_tu_nombre: 'Tu nombre', lbl_correo: 'Correo', lbl_password: 'Contraseña',
 
-        btn_crear_rest: 'Crear restaurante', btn_ingresar: 'Ingresar', btn_ya_tengo: 'Ya tengo cuenta', btn_crear_mi_rest: 'Crear mi restaurante',
+        btn_crear_rest: 'Crear restaurante', btn_ingresar: 'Ingresar', btn_ya_tengo: 'Ya tengo cuenta', btn_crear_mi_rest: 'Crear mi restaurante', btn_google: 'Continuar con Google', o_separador: 'o',
 
         mi_restaurante: 'Mi restaurante', menu_principal: 'Menú principal', cerrar_menu: 'Cerrar menú', secciones: 'Secciones',
 
@@ -139,6 +148,7 @@ const ADBANA_I18N_PANEL = {
         rep_ventas: 'ventas', rep_costo_vendido: 'costo vendido', rep_ganancia_bruta: 'ganancia bruta', rep_gastos: 'gastos', rep_ganancia_neta: 'ganancia neta',
 
         pedidos_cobrados: 'pedidos cobrados', mas_vendidos: 'Más vendidos', reg_gasto: 'Registrar gasto', lbl_descripcion: 'Descripción', btn_guardar_gasto: 'Guardar gasto',
+        btn_eliminar: 'Eliminar', btn_cancelar: 'Cancelar', gastos_lista: 'Historial de gastos', gastos_vacio: 'No hay gastos registrados.', msg_gasto_act: 'Gasto actualizado.', msg_gasto_elim: 'Gasto eliminado.', msg_usuario_elim: 'Integrante eliminado.',
 
         equipo_titulo: 'Equipo y permisos', equipo_sub: 'Cada rol incluye funciones iniciales. Puedes adaptar los permisos de cada persona sin cambiar su puesto.',
 
@@ -197,6 +207,15 @@ const ADBANA_I18N_PANEL = {
     },
 
     en: {
+        cocina_para_llevar: 'Takeaway',
+        cocina_vacio: "No tickets",
+        cocina_preparando: "In preparation", cocina_nuevos: "New orders",
+        cocina_notas: "Notes",
+        cocina_imprimir: "Print ticket",
+        cocina_sync: "Updates every 15 seconds",
+        cocina_pagina: "On this page",
+        cocina_actualizada: "Last updated",
+        cocina_sin_hora: "No time",
 
         cliente_defecto: 'Counter sale',
 
@@ -220,7 +239,7 @@ const ADBANA_I18N_PANEL = {
 
         lbl_restaurante: 'Restaurant name', lbl_tu_nombre: 'Your name', lbl_correo: 'Email', lbl_password: 'Password',
 
-        btn_crear_rest: 'Create restaurant', btn_ingresar: 'Sign in', btn_ya_tengo: 'I already have an account', btn_crear_mi_rest: 'Create my restaurant',
+        btn_crear_rest: 'Create restaurant', btn_ingresar: 'Sign in', btn_ya_tengo: 'I already have an account', btn_crear_mi_rest: 'Create my restaurant', btn_google: 'Continue with Google', o_separador: 'or',
 
         mi_restaurante: 'My restaurant', menu_principal: 'Main menu', cerrar_menu: 'Close menu', secciones: 'Sections',
 
@@ -335,6 +354,7 @@ const ADBANA_I18N_PANEL = {
         rep_ventas: 'sales', rep_costo_vendido: 'cost of goods sold', rep_ganancia_bruta: 'gross profit', rep_gastos: 'expenses', rep_ganancia_neta: 'net profit',
 
         pedidos_cobrados: 'paid orders', mas_vendidos: 'Best sellers', reg_gasto: 'Record expense', lbl_descripcion: 'Description', btn_guardar_gasto: 'Save expense',
+        btn_eliminar: 'Delete', btn_cancelar: 'Cancel', gastos_lista: 'Expense history', gastos_vacio: 'No expenses recorded.', msg_gasto_act: 'Expense updated.', msg_gasto_elim: 'Expense deleted.', msg_usuario_elim: 'Member deleted.',
 
         equipo_titulo: 'Team and permissions', equipo_sub: 'Each role includes default capabilities. You can customize each person’s permissions without changing their role.',
 
@@ -411,6 +431,15 @@ const ADBANA_I18N_PANEL = {
     },
 
     pt: {
+        cocina_para_llevar: 'Para viagem',
+        cocina_vacio: "Sem comandas",
+        cocina_preparando: "Em preparação", cocina_nuevos: "Novos pedidos",
+        cocina_notas: "Observações",
+        cocina_imprimir: "Imprimir comanda",
+        cocina_sync: "Atualização a cada 15 segundos",
+        cocina_pagina: "Nesta página",
+        cocina_actualizada: "Última atualização",
+        cocina_sin_hora: "Sem horário",
 
         cliente_defecto: 'Venda no balcão',
 
@@ -434,7 +463,7 @@ const ADBANA_I18N_PANEL = {
 
         lbl_restaurante: 'Nome do restaurante', lbl_tu_nombre: 'Seu nome', lbl_correo: 'E-mail', lbl_password: 'Senha',
 
-        btn_crear_rest: 'Criar restaurante', btn_ingresar: 'Entrar', btn_ya_tengo: 'Já tenho uma conta', btn_crear_mi_rest: 'Criar meu restaurante',
+        btn_crear_rest: 'Criar restaurante', btn_ingresar: 'Entrar', btn_ya_tengo: 'Já tenho uma conta', btn_crear_mi_rest: 'Criar meu restaurante', btn_google: 'Continuar com o Google', o_separador: 'ou',
 
         mi_restaurante: 'Meu restaurante', menu_principal: 'Menu principal', cerrar_menu: 'Fechar menu', secciones: 'Seções',
 
@@ -549,6 +578,7 @@ const ADBANA_I18N_PANEL = {
         rep_ventas: 'vendas', rep_costo_vendido: 'custo vendido', rep_ganancia_bruta: 'lucro bruto', rep_gastos: 'despesas', rep_ganancia_neta: 'lucro líquido',
 
         pedidos_cobrados: 'pedidos pagos', mas_vendidos: 'Mais vendidos', reg_gasto: 'Registrar despesa', lbl_descripcion: 'Descrição', btn_guardar_gasto: 'Salvar despesa',
+        btn_eliminar: 'Excluir', btn_cancelar: 'Cancelar', gastos_lista: 'Histórico de despesas', gastos_vacio: 'Nenhuma despesa registrada.', msg_gasto_act: 'Despesa atualizada.', msg_gasto_elim: 'Despesa excluída.', msg_usuario_elim: 'Integrante excluído.',
 
         equipo_titulo: 'Equipe e permissões', equipo_sub: 'Cada cargo inclui funções iniciais. Você pode adaptar as permissões de cada pessoa sem alterar seu cargo.',
 
@@ -625,6 +655,15 @@ const ADBANA_I18N_PANEL = {
     },
 
     fr: {
+        cocina_para_llevar: 'À emporter',
+        cocina_vacio: "Aucune commande",
+        cocina_preparando: "En préparation", cocina_nuevos: "Nouvelles commandes",
+        cocina_notas: "Remarques",
+        cocina_imprimir: "Imprimer le bon",
+        cocina_sync: "Actualisation toutes les 15 secondes",
+        cocina_pagina: "Sur cette page",
+        cocina_actualizada: "Dernière actualisation",
+        cocina_sin_hora: "Sans heure",
 
         cliente_defecto: 'Vente au comptoir',
 
@@ -648,7 +687,7 @@ const ADBANA_I18N_PANEL = {
 
         lbl_restaurante: 'Nom du restaurant', lbl_tu_nombre: 'Votre nom', lbl_correo: 'Adresse e-mail', lbl_password: 'Mot de passe',
 
-        btn_crear_rest: 'Créer le restaurant', btn_ingresar: 'Se connecter', btn_ya_tengo: 'J’ai déjà un compte', btn_crear_mi_rest: 'Créer mon restaurant',
+        btn_crear_rest: 'Créer le restaurant', btn_ingresar: 'Se connecter', btn_ya_tengo: 'J’ai déjà un compte', btn_crear_mi_rest: 'Créer mon restaurant', btn_google: 'Continuer avec Google', o_separador: 'ou',
 
         mi_restaurante: 'Mon restaurant', menu_principal: 'Menu principal', cerrar_menu: 'Fermer le menu', secciones: 'Sections',
 
@@ -763,6 +802,7 @@ const ADBANA_I18N_PANEL = {
         rep_ventas: 'ventes', rep_costo_vendido: 'coût des ventes', rep_ganancia_bruta: 'marge brute', rep_gastos: 'dépenses', rep_ganancia_neta: 'bénéfice net',
 
         pedidos_cobrados: 'commandes encaissées', mas_vendidos: 'Meilleures ventes', reg_gasto: 'Enregistrer une dépense', lbl_descripcion: 'Description', btn_guardar_gasto: 'Enregistrer la dépense',
+        btn_eliminar: 'Supprimer', btn_cancelar: 'Annuler', gastos_lista: 'Historique des dépenses', gastos_vacio: 'Aucune dépense enregistrée.', msg_gasto_act: 'Dépense mise à jour.', msg_gasto_elim: 'Dépense supprimée.', msg_usuario_elim: 'Membre supprimé.',
 
         equipo_titulo: 'Équipe et autorisations', equipo_sub: 'Chaque rôle inclut des fonctions initiales. Vous pouvez adapter les autorisations de chacun sans changer son poste.',
 
@@ -878,7 +918,7 @@ document.addEventListener('alpine:init', () => {
 
             carrito: {}, clave: '', cliente: (ADBANA_I18N_PANEL[idiomaInicial] || ADBANA_I18N_PANEL.es).cliente_defecto, tipo: 'recojo', mesa: '', direccion: '', telefono: '', notas: '',
 
-            enLinea:typeof navigator==='undefined'||navigator.onLine,verHistorialPedidos:false,cuentaActual:null, montoCobro:'', pagosCobro:[], cancelacion:null, devolucion:null, destinosCaja:[], entregaCaja:{caja_destino_id:'',monto:'',motivo:''}, recetaActual:null, recetaItems:[], recetaBusqueda:'', recetaOpciones:[], recetaPagina:1, recetaUltima:1, historialStock:[], historialPagina:1, historialUltima:1,
+            enLinea:typeof navigator==='undefined'||navigator.onLine,verHistorialPedidos:false,medioCuenta:'efectivo',cuentaActual:null, montoCobro:'', pagosCobro:[], cancelacion:null, devolucion:null, destinosCaja:[], entregaCaja:{caja_destino_id:'',monto:'',motivo:''}, recetaActual:null, recetaItems:[], recetaBusqueda:'', recetaOpciones:[], recetaPagina:1, recetaUltima:1, historialStock:[], historialPagina:1, historialUltima:1,
 
             pedidoBuscar:'', cobro: null, medio: 'efectivo', recibido: '', comprobante: null,
 
@@ -888,7 +928,7 @@ document.addEventListener('alpine:init', () => {
 
             categoriaNombre: '', stockForm: { es_merma:false, producto_id: '', tipo: 'entrada', cantidad: '', stock_real: '', motivo: '' },
 
-            gasto: { descripcion: '', monto: '', categoria: '' }, catalogoPermisos: null, editandoUsuario: null, permisosEditados: {}, usuarios: [], nuevoUsuario: { name: '', email: '', password: '', rol: 'cajero' }, timer: null, timerPermisos: null, refrescandoPermisos: false, pedidosEnCurso: null, sesionVersion: 0,
+            gasto: { id: null, descripcion: '', monto: '', categoria: '' }, gastosLista: [], paginaGastos: 1, ultimaGastos: 1, catalogoPermisos: null, editandoUsuario: null, permisosEditados: {}, usuarios: [], nuevoUsuario: { name: '', email: '', password: '', rol: 'cajero' }, timer: null, timerPermisos: null, refrescandoPermisos: false, pedidosEnCurso: null, sesionVersion: 0,
 
             t(clave) {
 
@@ -916,7 +956,7 @@ document.addEventListener('alpine:init', () => {
 
                 if (typeof document !== 'undefined' && document.documentElement) {
 
-                    document.documentElement.lang = cod;
+       document.documentElement.lang = cod;
 
                 }
 
@@ -963,7 +1003,7 @@ document.addEventListener('alpine:init', () => {
 
                     ...(p.pedidos ? [{id:'venta',nombre:this.t('nav_venta'),icono:'bag'}] : []),
 
-                    ...((p.pedidos || p.caja || p.cancelar || p.cocina) ? [{id:'cocina',nombre:this.t('nav_cocina'),icono:'chef'}] : []),
+                    ...((!['mozo','mozo_cajero'].includes(this.user.rol) && (p.pedidos || p.caja || p.cancelar || p.cocina)) ? [{id:'cocina',nombre:this.t('nav_cocina'),icono:'chef'}] : []),
 
                     ...(p.pedidos && this.modalidades.includes('mesa') ? [{id:'mesas',nombre:this.t('nav_mesas'),icono:'table'}] : []),
 
@@ -983,6 +1023,53 @@ document.addEventListener('alpine:init', () => {
 
             get tituloSeccion() { return this.tab==='perfil'?this.t('mi_perfil'):(this.navegacion.find(i=>i.id===this.tab)?.nombre || this.t('operacion')); },
 
+            relojCocina: Date.now(),
+            ultimaCocina: '',
+            get vistaCocina() { return this.tab === 'cocina' && !!this.user?.permisos.cocina; },
+            get gruposCocina() {
+                const pedidos = this.comandasCocina;
+                return [
+                    { id: 'preparando', titulo: this.t('cocina_preparando'), pedidos: pedidos.filter(p => p.estado === 'preparando') },
+                    { id: 'nuevos', titulo: this.t('cocina_nuevos'), pedidos: pedidos.filter(p => p.estado !== 'preparando') },
+                ];
+            },
+            async tomarComanda(pedido, event) {
+                if (this.busy || this.cargando) return;
+                const contenedor = event.currentTarget.closest('.kitchen-view');
+                const origen = event.currentTarget.closest('.kitchen-ticket').getBoundingClientRect();
+                const version = this.sesionVersion;
+                const animar = event.detail !== 0 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                await this.estado(pedido, 'preparando');
+                if (this.error || version !== this.sesionVersion || !this.vistaCocina) return;
+                await this.$nextTick();
+                const tarjeta = contenedor.querySelector('[data-comanda-id="' + pedido.id + '"][data-stage="preparando"]');
+                if (!animar || !tarjeta?.animate) return;
+                const destino = tarjeta.getBoundingClientRect();
+                tarjeta.animate([
+                    { transform: `translate(${origen.left - destino.left}px, ${origen.top - destino.top}px)` },
+                    { transform: 'translate(0, 0)' },
+                ], { duration: 300, easing: 'cubic-bezier(.22,1,.36,1)' });
+            },
+            get comandasCocina() {
+                return this.pedidosVisibles
+                    .filter(pedido => ['pendiente', 'confirmado', 'preparando'].includes(pedido.estado))
+                    .sort((a, b) => a.id - b.id);
+            },
+            destinoCocina(pedido) {
+                if (pedido.tipo === 'recojo') return this.t('cocina_para_llevar');
+                if (pedido.tipo !== 'mesa' || !pedido.mesa) return this.nombreTipo(pedido.tipo);
+                return /^mesa\b/i.test(pedido.mesa) ? pedido.mesa : this.t('lbl_mesa') + ' ' + pedido.mesa;
+            },
+            esperaCocina(pedido, ahora = this.relojCocina) {
+                const inicio = new Date(pedido.created_at).getTime();
+                if (!Number.isFinite(inicio)) return this.t('cocina_sin_hora');
+                const minutos = Math.max(0, Math.floor((ahora - inicio) / 60000));
+                if (minutos < 60) return minutos + ' min';
+                const horas = Math.floor(minutos / 60);
+                if (horas < 24) return horas + ' h ' + (minutos % 60) + ' min';
+                return Math.floor(horas / 24) + ' d ' + (horas % 24) + ' h';
+            },
+
             get soloCocina() { const p=this.user?.permisos || {}; return !p.pedidos && !p.caja && !p.cancelar; },
 
             requiereCocina(p) { return p.detalles.some(d=>d.requiere_cocina!==false && d.requiere_cocina!==0); },
@@ -999,12 +1086,68 @@ document.addEventListener('alpine:init', () => {
 
             },
 
-            ir(id) { if(id==='pedidos')id='cocina'; if(this.busy || (id!=='perfil' && !this.navegacion.some(n=>n.id===id)))return; this.tab=id; this.menuAbierto=false; this.perfilAbierto=false; this.avisosAbiertos=false; this.idiomaAbierto=false; },
+            ir(id) { if(id==='pedidos')id=['mozo','mozo_cajero'].includes(this.user?.rol)?'mesas':'cocina'; if(this.busy || (id!=='perfil' && !this.navegacion.some(n=>n.id===id)))return; this.tab=id; this.menuAbierto=false; this.perfilAbierto=false; this.avisosAbiertos=false; this.idiomaAbierto=false; },
 
             cambiarTema() { this.tema=this.tema==='dark'?'light':'dark'; localStorage.setItem('adbana:tema',this.tema); },
 
             fechaCorta(fecha) { return new Date(fecha+'T12:00:00').toLocaleDateString(this.locale,{weekday:'short'}); },
 
+            logoEditor: null,
+            logoGuardando: false,
+            logoError: '',
+            get logoRestaurante() { return this.user?.restaurante?.configuracion?.logo || null; },
+            seleccionarLogo(event) {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+                this.logoError = '';
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) {
+                    this.logoError = 'Elige una imagen JPG, PNG o WebP de hasta 8 MB.';
+                    return;
+                }
+                const url = URL.createObjectURL(file);
+                const image = new Image();
+                image.onload = () => {
+                    URL.revokeObjectURL(url);
+                    if (!this.user || this.user.rol !== 'dueno') return;
+                    this.logoEditor = { image, zoom: 1, x: 0, y: 0 };
+                    this.$nextTick(() => { this.dibujarLogo(); this.$refs.logoDialog.showModal(); });
+                };
+                image.onerror = () => { URL.revokeObjectURL(url); this.logoError = 'No se pudo abrir esta imagen. Prueba con otra.'; };
+                image.src = url;
+            },
+            dibujarLogo() {
+                if (!this.logoEditor) return;
+                const { image, zoom, x, y } = this.logoEditor;
+                const canvas = this.$refs.logoCanvas;
+                const ctx = canvas.getContext('2d');
+                const scale = Math.max(canvas.width / image.width, canvas.height / image.height) * Number(zoom);
+                const width = image.width * scale, height = image.height * scale;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(image, (canvas.width - width) / 2 + Number(x) / 100 * (width - canvas.width) / 2,
+                    (canvas.height - height) / 2 + Number(y) / 100 * (height - canvas.height) / 2, width, height);
+            },
+            cerrarLogo() {
+                if (this.logoGuardando) return;
+                this.$refs.logoDialog.close(); this.logoEditor = null;
+            },
+            async guardarLogo() {
+                if (this.logoGuardando || !this.logoEditor) return;
+                this.logoGuardando = true; this.logoError = '';
+                const session = this.sesionVersion;
+                try {
+                    const blob = await new Promise(resolve => this.$refs.logoCanvas.toBlob(resolve, 'image/png'));
+                    if (!blob) throw new Error('No se pudo preparar la imagen.');
+                    const form = new FormData(); form.append('logo', blob, 'logo.png');
+                    const data = await this.api('/configuracion/logo', 'POST', form);
+                    if (session !== this.sesionVersion || !this.user) return;
+                    this.user.restaurante = data.restaurante;
+                    if (this.configNegocio) this.configNegocio.logo = data.restaurante.configuracion?.logo;
+                    this.aviso = 'Logo actualizado.';
+                    this.$refs.logoDialog.close(); this.logoEditor = null;
+                } catch (error) { this.logoError = error.message; }
+                finally { this.logoGuardando = false; }
+            },
             abrirPerfil() { this.perfil={name:this.user.name,email:this.user.email,current_password:'',password:'',password_confirmation:''}; this.ir('perfil'); },
 
             async guardarPerfil() { await this.accion(async()=>{ this.user=await this.api('/perfil','PATCH',this.perfil); this.perfil.current_password='';this.perfil.password='';this.perfil.password_confirmation='';this.aviso=this.t('msg_perfil_ok'); }); },
@@ -1088,7 +1231,25 @@ document.addEventListener('alpine:init', () => {
 
             async init() {
 
-                if (typeof window !== 'undefined') { const params = new URLSearchParams(window.location.search); if(params.get('administracion')==='1'){this.token='';params.delete('administracion');const query=params.toString();window.history.replaceState({},'',window.location.pathname+(query?'?'+query:''));} if(window.location.pathname==='/restablecer-password'){ this.authModo='restablecer';this.resetToken=params.get('token')||'';this.resetEmail=params.get('email')||'';window.history.replaceState({},'',window.location.pathname); } }
+                if (typeof window !== 'undefined') {
+                    const params = new URLSearchParams(window.location.search);
+                    if (params.get('token') && window.location.pathname !== '/restablecer-password') {
+                        const googleToken = params.get('token');
+                        this.token = googleToken;
+                        sessionStorage.setItem('adbana:token', googleToken);
+                        params.delete('token');
+                        const query = params.toString();
+                        window.history.replaceState({}, '', window.location.pathname + (query ? '?' + query : ''));
+                    }
+                    if (params.get('error')) {
+                        this.error = decodeURIComponent(params.get('error'));
+                        params.delete('error');
+                        const query = params.toString();
+                        window.history.replaceState({}, '', window.location.pathname + (query ? '?' + query : ''));
+                    }
+                    if(params.get('administracion')==='1'){this.token='';params.delete('administracion');const query=params.toString();window.history.replaceState({},'',window.location.pathname+(query?'?'+query:''));}
+                    if(window.location.pathname==='/restablecer-password'){ this.authModo='restablecer';this.resetToken=params.get('token')||'';this.resetEmail=params.get('email')||'';window.history.replaceState({},'',window.location.pathname); }
+                }
 
                 if (typeof document !== 'undefined' && document.documentElement) {
 
@@ -1101,6 +1262,7 @@ document.addEventListener('alpine:init', () => {
                 this.$watch('tab', () => { if (this.user && !this.busy) this.cargarSeccion(); });
 
                 this.timer = setInterval(() => {
+                    this.relojCocina = Date.now();
 
                     if (this.user && !this.busy && !document.hidden && ['pedidos', 'cocina', 'mesas'].includes(this.tab)) {
 
@@ -1135,7 +1297,7 @@ document.addEventListener('alpine:init', () => {
 
             },
 
-            salirLocal() { this.editorCarta=null; this.platoCarta=null; this.configNegocio=null;this.mesasConfig=[];this.avanceConfig={}; this.cuentaActual=null;this.devolucion=null;this.cancelacion=null;this.recetaActual=null;this.recetaItems=[];this.historialStock=[];this.destinosCaja=[];this.pagosCobro=[]; this.pendientePos=null;this.sesiones=[];this.pendientesMovimiento={};this.paginaPedidos=1;this.mesasResumen=[]; this.perfil={name:'',email:'',current_password:'',password:'',password_confirmation:''}; this.editandoUsuario=null;this.catalogoPermisos=null;this.usuarios=[];this.permisosEditados={};this.dashboard=null; this.notificaciones=[]; this.perfilAbierto=false; this.avisosAbiertos=false; this.idiomaAbierto=false; this.cargaVersion++; this.cargando=false; this.cajaEnCurso=null; this.sesionVersion++; this.pedidos = []; this.productos = []; this.categorias = []; this.caja = null; this.resumen = null; this.pedidosEnCurso = null; this.token = ''; this.user = null; this.carrito = {}; this.cobro = null; this.comprobante = null; sessionStorage.removeItem('adbana:token'); },
+            salirLocal() { if(this.$refs?.logoDialog?.open)this.$refs.logoDialog.close();this.logoEditor=null;this.logoError=''; this.editorCarta=null; this.platoCarta=null; this.configNegocio=null;this.mesasConfig=[];this.avanceConfig={}; this.cuentaActual=null;this.devolucion=null;this.cancelacion=null;this.recetaActual=null;this.recetaItems=[];this.historialStock=[];this.destinosCaja=[];this.pagosCobro=[]; this.pendientePos=null;this.sesiones=[];this.pendientesMovimiento={};this.paginaPedidos=1;this.mesasResumen=[]; this.perfil={name:'',email:'',current_password:'',password:'',password_confirmation:''}; this.editandoUsuario=null;this.catalogoPermisos=null;this.usuarios=[];this.permisosEditados={};this.dashboard=null; this.notificaciones=[]; this.perfilAbierto=false; this.avisosAbiertos=false; this.idiomaAbierto=false; this.cargaVersion++; this.cargando=false; this.cajaEnCurso=null; this.sesionVersion++; this.pedidos = []; this.productos = []; this.categorias = []; this.caja = null; this.resumen = null; this.pedidosEnCurso = null; this.token = ''; this.user = null; this.carrito = {}; this.cobro = null; this.comprobante = null; sessionStorage.removeItem('adbana:token'); },
 
             async logout() { await this.accion(async () => { await this.api('/auth/logout', 'POST'); this.salirLocal(); }); },
 
@@ -1199,7 +1361,7 @@ document.addEventListener('alpine:init', () => {
 
                 if (['pedidos', 'cocina', 'mesas'].includes(this.tab)) {
 
-                    await Promise.all([this.cargarPedidos(), this.user.permisos.caja ? this.cargarCaja() : Promise.resolve()]);
+                    await Promise.all([this.cargarPedidos(), this.user.permisos.caja && !this.vistaCocina ? this.cargarCaja() : Promise.resolve()]);
 
                     return;
 
@@ -1215,7 +1377,17 @@ document.addEventListener('alpine:init', () => {
 
                 if (this.tab === 'caja') { await this.cargarCaja(); return; }
 
-                if (tab === 'ventas') { if(!this.user.permisos.reportes)return; const data = await this.api('/reportes/resumen?desde=' + this.fecha + '&hasta=' + this.fecha); if(vigente())this.reporte=data; return; }
+                if (tab === 'ventas') {
+                    const [rep, gas] = await Promise.all([
+                        this.user.permisos.reportes ? this.api('/reportes/resumen?desde=' + this.fecha + '&hasta=' + this.fecha) : Promise.resolve(null),
+                        this.user.permisos.gastos ? this.api('/gastos?page=' + this.paginaGastos) : Promise.resolve(null),
+                    ]);
+                    if (vigente()) {
+                        if (rep) this.reporte = rep;
+                        if (gas) { this.gastosLista = gas.data || []; this.ultimaGastos = gas.last_page || 1; }
+                    }
+                    return;
+                }
 
                 if (tab === 'equipo') { const [data,catalogo] = await Promise.all([this.api('/usuarios'),this.api('/usuarios/permisos')]); if(vigente()){this.usuarios=data;this.catalogoPermisos=catalogo;if(this.editandoUsuario&&!data.some(u=>u.id===this.editandoUsuario.id))this.editandoUsuario=null;if(!this.rolesDisponibles.includes(this.nuevoUsuario.rol))this.nuevoUsuario.rol=this.rolesDisponibles[0]||'mozo';} return; }
 
@@ -1285,7 +1457,7 @@ document.addEventListener('alpine:init', () => {
 
                 const version = this.sesionVersion;
 
-                const cocina = this.soloCocina;
+                const cocina = this.vistaCocina || this.soloCocina;
 
                 const tab = this.tab, pagina = this.paginaPedidos, filtro = this.filtroMesa, busqueda=this.filtroPedidos;
 
@@ -1312,6 +1484,7 @@ document.addEventListener('alpine:init', () => {
                     if(version!==this.sesionVersion||tab!==this.tab||pagina!==this.paginaPedidos||busqueda!==this.filtroPedidos||filtro!==this.filtroMesa||historial!==this.verHistorialPedidos)return;
 
                     this.pedidos=data.data;this.ultimaPedidos=data.last_page;this.totalPedidos=data.total;
+                    if (cocina) { this.relojCocina=Date.now(); this.ultimaCocina=new Date().toLocaleTimeString(this.locale,{hour:'2-digit',minute:'2-digit'}); }
 
                 })();
 
@@ -1435,9 +1608,22 @@ document.addEventListener('alpine:init', () => {
 
             async cancelarPedido() { await this.accion(async()=>{const c=this.cancelacion;await this.api('/pedidos/'+c.pedido.id+'/estado','PATCH',{estado:'cancelado',motivo:c.motivo,reponer_stock:c.reponer_stock});this.cancelacion=null;await this.actualizar();}); },
 
+            async entregarPedidoMesa(pedido) {
+                if (!this.user?.permisos.pedidos || pedido.estado !== 'listo') return;
+                await this.accion(async () => {
+                    await this.api('/pedidos/'+pedido.id+'/estado', 'PATCH', {estado:'entregado'});
+                    await this.actualizar();
+                    if (this.cuentaActual) {
+                        this.cuentaActual = await this.api('/cuentas/'+this.cuentaActual.id+'?page='+(this.cuentaActual.pagina || 1));
+                    }
+                    this.aviso = this.t('entrega_registrada');
+                });
+            },
+
             async verCuenta(id, pagina = 1, cobrar = false) {
                 await this.accion(async () => {
                     this.cuentaActual = await this.api('/cuentas/'+id+'?page='+pagina);
+                    this.medioCuenta = 'efectivo';
                     if (cobrar && this.user?.permisos.caja && this.caja
                         && this.cuentaActual.abierta && Number(this.cuentaActual.pendiente) > 0) {
                         this.cobrarCuenta();
@@ -1445,7 +1631,25 @@ document.addEventListener('alpine:init', () => {
                 });
             },
 
-            cobrarCuenta() { const c=this.cuentaActual;this.prepararCobro({id:c.id,total:c.pendiente,saldo_pendiente:c.pendiente,esCuenta:true}); },
+            get puedeLiberarMesa() {
+                const cuenta = this.cuentaActual;
+                if (!cuenta?.abierta || !this.user?.permisos.pedidos || Number(cuenta.pendiente) !== 0) return false;
+                const resumen = this.mesasResumen.find(mesa => mesa.id === cuenta.id);
+                if (resumen) return resumen.estado === 'ocupada';
+                return cuenta.ultima_pagina === 1 && cuenta.pedidos.every(pedido => ['entregado','cancelado'].includes(pedido.estado));
+            },
+
+            cobrarCuenta() {
+                const cuenta = this.cuentaActual;
+                if (!cuenta?.abierta || Number(cuenta.pendiente) <= 0) return;
+                const soloEfectivo = !this.user?.permisos.caja && !!this.user?.permisos.cobrar_efectivo;
+                if (!(this.user?.permisos.caja && this.caja) && !soloEfectivo) return;
+                if (soloEfectivo && this.medioCuenta !== 'efectivo') return;
+                if (!['efectivo','yape','plin','tarjeta'].includes(this.medioCuenta)) return;
+                this.prepararCobro({id:cuenta.id,total:cuenta.pendiente,saldo_pendiente:cuenta.pendiente,esCuenta:true,mantenerOcupada:false,soloEfectivo});
+                this.medio = this.medioCuenta;
+                this.recibido = this.medio === 'efectivo' ? '' : this.montoCobro;
+            },
 
             agregarConsumo() { this.tipo='mesa';this.mesa=this.cuentaActual.mesa;this.cuentaActual=null;this.tab='venta'; },
 
@@ -1485,7 +1689,7 @@ document.addEventListener('alpine:init', () => {
 
             atraparOperacion(event){const dialogos=Array.from(document.querySelectorAll('.modal[role="dialog"]')).filter(el=>el.getClientRects().length);const modal=dialogos.at(-1);if(!modal)return;const campos=Array.from(modal.querySelectorAll('input,select,textarea,button,a[href]')).filter(el=>!el.disabled&&el.getClientRects().length);if(!campos.length)return;const primero=campos[0],ultimo=campos.at(-1);if(!modal.contains(event.target)){event.preventDefault();primero.focus();}else if(event.shiftKey&&event.target===primero){event.preventDefault();ultimo.focus();}else if(!event.shiftKey&&event.target===ultimo){event.preventDefault();primero.focus();}},
 
-            verComanda(p) {this.comprobante={...p,cliente_nombre:p.mesa?'Mesa '+p.mesa:'Para llevar',esComanda:true,detalles:p.detalles.filter(d=>d.requiere_cocina!==false&&d.requiere_cocina!==0)};},
+            verComanda(p) {this.comprobante={...p,cliente_nombre:this.destinoCocina(p),esComanda:true,detalles:p.detalles.filter(d=>d.requiere_cocina!==false&&d.requiere_cocina!==0)};},
 
             imprimirCuenta() {if(this.cuentaActual.ultima_pagina>1){this.error='Esta cuenta tiene varias páginas. Imprime las cuentas de cada pedido para no omitir consumos.';return;}this.comprobante={...this.cuentaActual,cliente_nombre:'Mesa '+this.cuentaActual.mesa,detalles:this.cuentaActual.pedidos.filter(p=>p.estado!=='cancelado').flatMap(p=>p.detalles),esCuenta:true};},
 
@@ -1678,13 +1882,34 @@ document.addEventListener('alpine:init', () => {
 
             async verReporte() { await this.accion(async () => { this.reporte = await this.api('/reportes/resumen?desde=' + this.fecha + '&hasta=' + this.fecha); }); },
 
-            async guardarGasto() { await this.accion(async () => { await this.api('/gastos', 'POST', { ...this.gasto, fecha: this.fecha }); this.aviso = this.t('msg_gasto_reg'); }); },
+            editarGasto(g) { this.gasto = { id: g.id, descripcion: g.descripcion, monto: g.monto, categoria: g.categoria || '' }; },
+            cancelarEdicionGasto() { this.gasto = { id: null, descripcion: '', monto: '', categoria: '' }; },
+            async guardarGasto() {
+                await this.accion(async () => {
+                    const esEdicion = Boolean(this.gasto.id);
+                    const ruta = esEdicion ? '/gastos/' + this.gasto.id : '/gastos';
+                    const metodo = esEdicion ? 'PATCH' : 'POST';
+                    await this.api(ruta, metodo, { descripcion: this.gasto.descripcion, monto: this.gasto.monto, categoria: this.gasto.categoria || null, fecha: this.fecha });
+                    this.gasto = { id: null, descripcion: '', monto: '', categoria: '' };
+                    this.aviso = esEdicion ? this.t('msg_gasto_act') : this.t('msg_gasto_reg');
+                    await this.actualizar();
+                });
+            },
+            async eliminarGasto(g) {
+                await this.accion(async () => {
+                    await this.api('/gastos/' + g.id, 'DELETE');
+                    if (this.gasto.id === g.id) this.cancelarEdicionGasto();
+                    this.aviso = this.t('msg_gasto_elim');
+                    await this.actualizar();
+                });
+            },
 
             async verUsuarios() { await this.accion(async () => { this.usuarios = await this.api('/usuarios'); }); },
 
             async crearUsuario() { await this.accion(async () => { await this.api('/usuarios', 'POST', this.nuevoUsuario); this.nuevoUsuario = { name: '', email: '', password: '', rol: this.rolesDisponibles[0]||'mozo' }; this.usuarios = await this.api('/usuarios'); }); },
 
             async activarUsuario(u) { await this.accion(async () => { await this.api('/usuarios/' + u.id, 'PATCH', { activo: !u.activo }); this.usuarios = await this.api('/usuarios'); }); },
+            async eliminarUsuario(u) { await this.accion(async () => { await this.api('/usuarios/' + u.id, 'DELETE'); this.usuarios = await this.api('/usuarios'); this.aviso = this.t('msg_usuario_elim'); }); },
 
             nombreRol(rol) { return ({dueno:this.t('rol_dueno'),cajero:this.t('rol_cajero'),mozo:this.t('rol_mozo'),mozo_cajero:this.t('rol_mozo_cajero'),cocina:this.t('rol_cocina')})[rol]||rol; },
 
@@ -1766,10 +1991,11 @@ Object.assign(ADBANA_I18N_PANEL.pt,{btn_enviar_cocina:'Registrar pedido'});
 
 Object.assign(ADBANA_I18N_PANEL.fr,{btn_enviar_cocina:'Enregistrer la commande'});
 
-Object.assign(ADBANA_I18N_PANEL.es,{"tomar_pedido": "Tomar pedido", "marcar_listo": "Marcar listo", "registrar_entrega": "Registrar entrega", "aceptar_pedido": "Aceptar pedido", "historial_pedidos": "Historial de pedidos", "pedido_en_cocina": " · enviado a cocina."});
+Object.assign(ADBANA_I18N_PANEL.es,{"entrega_registrada":"Entrega registrada","tomar_pedido": "Tomar pedido", "marcar_listo": "Marcar listo", "registrar_entrega": "Registrar entrega", "aceptar_pedido": "Aceptar pedido", "historial_pedidos": "Historial de pedidos", "pedido_en_cocina": " · enviado a cocina."});
 
-Object.assign(ADBANA_I18N_PANEL.en,{"tomar_pedido": "Take order", "marcar_listo": "Mark ready", "registrar_entrega": "Record delivery", "aceptar_pedido": "Accept order", "historial_pedidos": "Order history", "pedido_en_cocina": " · sent to kitchen."});
+Object.assign(ADBANA_I18N_PANEL.en,{"entrega_registrada":"Delivery recorded","tomar_pedido": "Take order", "marcar_listo": "Mark ready", "registrar_entrega": "Record delivery", "aceptar_pedido": "Accept order", "historial_pedidos": "Order history", "pedido_en_cocina": " · sent to kitchen."});
 
-Object.assign(ADBANA_I18N_PANEL.pt,{"tomar_pedido": "Assumir pedido", "marcar_listo": "Marcar pronto", "registrar_entrega": "Registrar entrega", "aceptar_pedido": "Aceitar pedido", "historial_pedidos": "Histórico de pedidos", "pedido_en_cocina": " · enviado à cozinha."});
+Object.assign(ADBANA_I18N_PANEL.pt,{"entrega_registrada":"Entrega registrada","tomar_pedido": "Assumir pedido", "marcar_listo": "Marcar pronto", "registrar_entrega": "Registrar entrega", "aceptar_pedido": "Aceitar pedido", "historial_pedidos": "Histórico de pedidos", "pedido_en_cocina": " · enviado à cozinha."});
 
-Object.assign(ADBANA_I18N_PANEL.fr,{"tomar_pedido": "Prendre la commande", "marcar_listo": "Marquer prêt", "registrar_entrega": "Enregistrer la remise", "aceptar_pedido": "Accepter la commande", "historial_pedidos": "Historique des commandes", "pedido_en_cocina": " · envoyé en cuisine."});
+Object.assign(ADBANA_I18N_PANEL.fr,{"entrega_registrada":"Remise enregistrée","tomar_pedido": "Prendre la commande", "marcar_listo": "Marquer prêt", "registrar_entrega": "Enregistrer la remise", "aceptar_pedido": "Accepter la commande", "historial_pedidos": "Historique des commandes", "pedido_en_cocina": " · envoyé en cuisine."});
+

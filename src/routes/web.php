@@ -6,21 +6,13 @@ use App\Http\Controllers\AdministradorPlataformaController;
 use App\Http\Controllers\AuditoriaPlataformaController;
 use App\Http\Controllers\RestaurantePlataformaController;
 use App\Http\Controllers\ResumenPlataformaController;
+use App\Http\Controllers\WebPagesController;
 use App\Http\Middleware\AccesoPlataforma;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Symfony\Component\HttpFoundation\Response;
 
 Route::view('/', 'en-construccion');
 Route::post('/acceso', AccesoUnificadoController::class)->middleware('throttle:login');
-Route::get('/administracion', function (Request $request): Response {
-    $admin = $request->user('plataforma');
-    if (! $admin || ! $admin->activo || $request->session()->get('plataforma_version') !== $admin->sesion_version) {
-        return redirect('/login?administracion=1')->header('Cache-Control', 'no-store');
-    }
-
-    return response()->view('administracion')->header('Cache-Control', 'no-store');
-});
+Route::get('/administracion', [WebPagesController::class, 'administracion']);
 Route::prefix('administracion/api')->group(function () {
     Route::middleware(AccesoPlataforma::class)->group(function () {
         Route::get('/me', [AccesoPlataformaController::class, 'me']);
@@ -40,8 +32,15 @@ Route::prefix('administracion/api')->group(function () {
 
 Route::view('/panel', 'panel');
 Route::view('/login', 'panel');
-Route::get('/restablecer-password', fn () => response()->view('panel')->header('Referrer-Policy', 'no-referrer')->header('Cache-Control', 'no-store'))->name('password.reset');
-Route::get('/c/{slug}', fn (string $slug) => view('carta', ['slug' => $slug]))->where('slug', '[a-z0-9\-]+');
+Route::get('/auth/google/redirect', [\App\Http\Controllers\GoogleAuthController::class, 'redirect']);
+Route::get('/auth/google/callback', [\App\Http\Controllers\GoogleAuthController::class, 'callback']);
+Route::get('/restablecer-password', [WebPagesController::class, 'restablecerPassword'])->name('password.reset');
+Route::get('/c/{slug}', [WebPagesController::class, 'carta'])->where('slug', '[a-z0-9\-]+');
+Route::get('/m/{slug}', [WebPagesController::class, 'carta'])->where('slug', '[a-z0-9\-]+');
 
 Route::get('/fotos-platos/{archivo}', [\App\Http\Controllers\ProductoController::class, 'foto'])
     ->where('archivo', '[A-Za-z0-9]{40}\.(jpg|jpeg|png|webp)');
+
+Route::get('/logos-restaurantes/{restaurante}/{archivo}', [\App\Http\Controllers\ConfiguracionRestauranteController::class, 'mostrarLogo'])
+    ->whereNumber('restaurante')
+    ->where('archivo', '[A-Za-z0-9_-]+\.(?:png|jpg|jpeg|webp)');

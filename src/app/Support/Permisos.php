@@ -8,6 +8,7 @@ final class Permisos
         'devoluciones' => ['nombre' => 'Autorizar devoluciones', 'descripcion' => 'Registrar devoluciones y anular ventas cobradas con motivo e historial.', 'grupo' => 'Administración'],
         'pedidos' => ['nombre' => 'Atender pedidos y mesas', 'descripcion' => 'Crear pedidos, confirmarlos y entregar los que estén listos.', 'grupo' => 'Operación'],
         'cocina' => ['nombre' => 'Gestionar cocina', 'descripcion' => 'Consultar comandas y marcar preparando o listo.', 'grupo' => 'Operación'],
+        'cobrar_efectivo' => ['nombre' => 'Cobrar efectivo de mesas', 'descripcion' => 'Confirmar efectivo recibido en mesas a su nombre. No permite retiros, ajustes ni pagos digitales.', 'grupo' => 'Operación'],
         'caja' => ['nombre' => 'Cobrar y gestionar su caja', 'descripcion' => 'Cobrar pedidos y abrir, mover y cerrar su propio turno. No da acceso a cajas ajenas.', 'grupo' => 'Operación'],
         'cancelar' => ['nombre' => 'Cancelar pedidos sin cobrar', 'descripcion' => 'Cancelar pedidos indicando si vuelven al stock o son merma. No autoriza devoluciones de pagos.', 'grupo' => 'Operación'],
         'productos' => ['nombre' => 'Administrar productos y precios', 'descripcion' => 'Crear y editar productos, costos y categorías; incluye stock inicial de productos nuevos.', 'grupo' => 'Administración'],
@@ -22,7 +23,7 @@ final class Permisos
         $claves = match ($rol) {
             'dueno' => array_keys(self::CATALOGO),
             'cajero' => ['pedidos', 'cocina', 'caja', 'cancelar'],
-            'mozo' => ['pedidos'],
+            'mozo' => ['pedidos', 'cobrar_efectivo'],
             'mozo_cajero' => ['pedidos', 'caja'],
             'cocina' => ['cocina'],
             default => [],

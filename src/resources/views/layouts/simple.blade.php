@@ -150,8 +150,8 @@
         }
     </style>
 </head>
-<body>
-    <div class="simple-lang" id="simple-lang">
+<body data-title-i18n="@yield('titulo_i18n')">
+  <div class="simple-lang" id="simple-lang">
         <button type="button" class="simple-lang-btn" id="simple-lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Cambiar idioma">
             <svg aria-hidden="true"><use href="/images/panel-icons.svg#globe"></use></svg>
             <span id="simple-lang-code">ES</span>
@@ -175,37 +175,97 @@
                     construccion_t: 'En construcción | Adbana',
                     construccion_h1: 'Estamos construyendo esta sección',
                     construccion_p: 'El panel de Adbana estará disponible muy pronto.',
+                    e403_t: 'Acceso denegado | Adbana',
+                    e403_h1: 'No tienes permiso para acceder',
+                    e403_p: 'Tu cuenta o rol actual no cuenta con autorización para ver esta sección o realizar esta operación.',
                     e404_t: 'Página no encontrada | Adbana',
                     e404_h1: 'No encontramos esta página',
                     e404_p: 'Puede que el enlace esté mal escrito o que la página ya no exista.',
                     e404_btn: 'Volver al inicio',
+                    e419_t: 'Sesión expirada | Adbana',
+                    e419_h1: 'Tu sesión ha expirado',
+                    e419_p: 'Por seguridad, la sesión se cerró tras un periodo de inactividad. Recarga e inicia sesión nuevamente.',
+                    e429_t: 'Demasiadas peticiones | Adbana',
+                    e429_h1: 'Demasiadas solicitudes seguidas',
+                    e429_p: 'Has alcanzado el límite de solicitudes por minuto. Espera unos segundos antes de volver a intentarlo.',
+                    e500_t: 'Error del servidor | Adbana',
+                    e500_h1: 'Ocurrió un problema en el servidor',
+                    e500_p: 'Estamos procesando tu solicitud, pero surgió un inconveniente interno. Por favor intenta de nuevo en unos instantes.',
+                    e503_t: 'Servicio no disponible | Adbana',
+                    e503_h1: 'Servicio temporalmente en mantenimiento',
+                    e503_p: 'El servidor o la base de datos se está reconectando. Tus datos están seguros; vuelve a intentarlo en unos segundos.',
                 },
                 en: {
                     construccion_t: 'Under construction | Adbana',
                     construccion_h1: 'We are building this section',
                     construccion_p: 'The Adbana dashboard will be available very soon.',
+                    e403_t: 'Access denied | Adbana',
+                    e403_h1: 'You do not have permission to access',
+                    e403_p: 'Your current account or role is not authorized to view this section or perform this action.',
                     e404_t: 'Page not found | Adbana',
                     e404_h1: 'We could not find this page',
                     e404_p: 'The link might be misspelled or the page may no longer exist.',
                     e404_btn: 'Back to home',
+                    e419_t: 'Session expired | Adbana',
+                    e419_h1: 'Your session has expired',
+                    e419_p: 'For security reasons, the session closed after inactivity. Reload and sign in again.',
+                    e429_t: 'Too many requests | Adbana',
+                    e429_h1: 'Too many requests in a row',
+                    e429_p: 'You have reached the rate limit per minute. Please wait a few seconds before trying again.',
+                    e500_t: 'Server error | Adbana',
+                    e500_h1: 'A server problem occurred',
+                    e500_p: 'We encountered an unexpected internal issue while processing your request. Please try again shortly.',
+                    e503_t: 'Service unavailable | Adbana',
+                    e503_h1: 'Service temporarily under maintenance',
+                    e503_p: 'The server or database is reconnecting. Your data is safe; please try again in a few seconds.',
                 },
                 pt: {
                     construccion_t: 'Em construção | Adbana',
                     construccion_h1: 'Estamos construindo esta seção',
                     construccion_p: 'O painel da Adbana estará disponível muito em breve.',
+                    e403_t: 'Acesso negado | Adbana',
+                    e403_h1: 'Você não tem permissão para acessar',
+                    e403_p: 'Sua conta ou função atual não possui autorização para ver esta seção ou realizar esta operação.',
                     e404_t: 'Página não encontrada | Adbana',
                     e404_h1: 'Não encontramos esta página',
                     e404_p: 'O link pode estar incorreto ou a página pode não existir mais.',
                     e404_btn: 'Voltar ao início',
+                    e419_t: 'Sessão expirada | Adbana',
+                    e419_h1: 'Sua sessão expirou',
+                    e419_p: 'Por segurança, a sessão foi encerrada após um período de inatividade. Recarregue e entre novamente.',
+                    e429_t: 'Muitas solicitações | Adbana',
+                    e429_h1: 'Muitas solicitações seguidas',
+                    e429_p: 'Você atingiu o limite de solicitações por minuto. Aguarde alguns segundos antes de tentar novamente.',
+                    e500_t: 'Erro do servidor | Adbana',
+                    e500_h1: 'Ocorreu um problema no servidor',
+                    e500_p: 'Surgiu um imprevisto interno ao processar sua solicitação. Tente novamente em alguns instantes.',
+                    e503_t: 'Serviço indisponível | Adbana',
+                    e503_h1: 'Serviço temporariamente em manutenção',
+                    e503_p: 'O servidor ou banco de dados está reconectando. Seus dados estão seguros; tente novamente em alguns segundos.',
                 },
                 fr: {
                     construccion_t: 'En construction | Adbana',
                     construccion_h1: 'Nous construisons cette section',
                     construccion_p: 'Le tableau de bord Adbana sera disponible très bientôt.',
+                    e403_t: 'Accès refusé | Adbana',
+                    e403_h1: 'Vous n’avez pas l’autorisation d’accéder',
+                    e403_p: 'Votre compte ou rôle actuel n’est pas autorisé à consulter cette section ou à effectuer cette opération.',
                     e404_t: 'Page introuvable | Adbana',
                     e404_h1: 'Nous n’avons pas trouvé cette page',
                     e404_p: 'Le lien est peut-être mal orthographié ou la page n’existe plus.',
                     e404_btn: 'Retour à l’accueil',
+                    e419_t: 'Session expirée | Adbana',
+                    e419_h1: 'Votre session a expiré',
+                    e419_p: 'Par sécurité, la session a été fermée après une période d’inactivité. Rechargez et reconnectez-vous.',
+                    e429_t: 'Trop de requêtes | Adbana',
+                    e429_h1: 'Trop de requêtes consécutives',
+                    e429_p: 'Vous avez atteint la limite de requêtes par minute. Veuillez patienter quelques secondes avant de réessayer.',
+                    e500_t: 'Erreur serveur | Adbana',
+                    e500_h1: 'Un problème est survenu sur le serveur',
+                    e500_p: 'Une erreur interne est survenue lors du traitement de votre demande. Veuillez réessayer dans quelques instants.',
+                    e503_t: 'Service indisponible | Adbana',
+                    e503_h1: 'Service temporairement en maintenance',
+                    e503_p: 'Le serveur ou la base de données se reconnecte. Vos données sont en sécurité ; réessayez dans quelques secondes.',
                 },
             };
             const btn = document.getElementById('simple-lang-btn');
@@ -246,3 +306,4 @@
     </script>
 </body>
 </html>
+

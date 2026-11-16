@@ -11,6 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -57,7 +59,7 @@ class ConfiguracionRestauranteController extends Controller
             $restaurante->forceFill([
                 'telefono' => $datos['telefono'],
                 'publicado' => $datos['publicado'],
-                'configuracion' => collect($datos)->except(['publicado', 'telefono', 'cantidad_mesas'])->all(),
+                'configuracion' => array_merge($restaurante->configuracion ?? [], collect($datos)->except(['publicado', 'telefono', 'cantidad_mesas'])->all()),
             ])->save();
         });
         Cache::forget('carta:'.$request->user()->restaurante->slug);
@@ -65,6 +67,43 @@ class ConfiguracionRestauranteController extends Controller
         $request->user()->unsetRelation('restaurante');
 
         return $this->show($request);
+    }
+
+    public function guardarLogo(Request $request): JsonResponse
+    {
+        $request->validate([
+            'logo' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048', 'dimensions:max_width=2048,max_height=2048'],
+        ]);
+        $restauranteId = $request->user()->restaurante_id;
+        $ruta = $request->file('logo')->store('logos-restaurantes/'.$restauranteId, 'public');
+        abort_unless(is_string($ruta), 500, 'No se pudo guardar el logo.');
+        try {
+            $restaurante = DB::transaction(function () use ($restauranteId, $ruta): Restaurante {
+                $restaurante = Restaurante::whereKey($restauranteId)->lockForUpdate()->firstOrFail();
+                $configuracion = $restaurante->configuracion ?? [];
+                $configuracion['logo'] = '/logos-restaurantes/'.$restauranteId.'/'.basename($ruta);
+                $restaurante->forceFill(['configuracion' => $configuracion])->save();
+
+                return $restaurante;
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($ruta);
+            throw $exception;
+        }
+
+        return response()->json(['restaurante' => $restaurante]);
+    }
+
+    public function mostrarLogo(int $restaurante, string $archivo): StreamedResponse
+    {
+        abort_unless(Restaurante::whereKey($restaurante)->where('activo', true)->exists(), 404);
+        $ruta = 'logos-restaurantes/'.$restaurante.'/'.$archivo;
+        abort_unless(Storage::disk('public')->exists($ruta), 404);
+
+        return Storage::disk('public')->response($ruta, null, [
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
     }
 
     public function mesa(Request $request, int $id): JsonResponse

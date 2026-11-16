@@ -39,7 +39,7 @@ return [
     | "expires_at" attribute, but first-party sessions are not affected.
     |
     */
-    'expiration' => (int) env('SANCTUM_EXPIRATION', 720),
+    'expiration' => (int) env('SANCTUM_EXPIRATION', 480),
     /*
     |--------------------------------------------------------------------------
     | Token Prefix

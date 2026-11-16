@@ -13,7 +13,10 @@ Artisan::command('adbana:crear-superadmin', function () {
     $email = strtolower(trim((string) $this->ask('Correo del superadministrador')));
     $password = $this->secret('Contraseña nueva (mínimo 12 caracteres)');
     $confirmation = $this->secret('Repite la contraseña');
-    $validator = Validator::make(['name' => $name, 'email' => $email, 'password' => $password, 'password_confirmation' => $confirmation], ['name' => 'required|string|max:120', 'email' => 'required|email|max:255', 'password' => 'required|string|min:12|max:72|confirmed']);
+    $validator = Validator::make(
+        ['name' => $name, 'email' => $email, 'password' => $password, 'password_confirmation' => $confirmation],
+        ['name' => 'required|string|max:120', 'email' => 'required|email|max:255', 'password' => 'required|string|min:12|max:72|confirmed']
+    );
     $validator->after(function ($validator) use ($password) {
         if (strlen((string) $password) > 72) {
             $validator->errors()->add('password', 'La contraseña admite un máximo de 72 bytes.');
@@ -44,6 +47,7 @@ Artisan::command('adbana:crear-superadmin', function () {
 })->purpose('Crear el primer superadministrador de Adbana sin registro público');
 
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

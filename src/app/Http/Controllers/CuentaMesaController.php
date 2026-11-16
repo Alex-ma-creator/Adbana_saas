@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\CuentaMesa;
+use App\Models\Caja;
+use App\Models\User;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Support\Cobros;
@@ -66,14 +68,32 @@ class CuentaMesaController extends Controller
     public function cobrar(Request $request, int $id): JsonResponse
     {
         $datos = $request->validate(Cobros::reglas() + ['mantener_ocupada' => ['sometimes', 'boolean']]);
-        $resultado = app(OperacionIdempotente::class)->ejecutar($request->user(), 'cuenta_cobro:'.$id, $datos, function () use ($request, $id, $datos) {
+        $soloEfectivo = ! $request->user()->tienePermiso('caja');
+        if ($soloEfectivo) {
+            abort_unless($request->user()->tienePermiso('cobrar_efectivo'), 403);
+            foreach ($datos['pagos'] as $pago) {
+                if ($pago['medio_pago'] !== 'efectivo') {
+                    throw ValidationException::withMessages(['pagos' => 'Solo puedes confirmar efectivo recibido. Los pagos digitales corresponden a caja.']);
+                }
+            }
+            $datos['mantener_ocupada'] = false;
+        }
+        $resultado = app(OperacionIdempotente::class)->ejecutar($request->user(), 'cuenta_cobro:'.$id, $datos, function () use ($request, $id, $datos, $soloEfectivo) {
             $cuenta = CuentaMesa::lockForUpdate()->findOrFail($id);
             abort_unless($cuenta->abierta, 409, 'La cuenta está cerrada.');
             $pedidos = Pedido::where('cuenta_id', $id)->where('estado', '!=', 'cancelado')->whereNull('anulado_at')->orderBy('id')->lockForUpdate()->get();
-            $caja = app(CajaController::class)->bloquear($request);
+            if ($soloEfectivo) {
+                User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+                $caja = Caja::where('user_id', $request->user()->id)->whereNull('cerrada_at')->lockForUpdate()->first();
+                if (! $caja) {
+                    $caja = Caja::create(['user_id' => $request->user()->id, 'saldo_inicial' => '0.00']);
+                }
+            } else {
+                $caja = app(CajaController::class)->bloquear($request);
+            }
             $cobros = app(Cobros::class)->registrar($pedidos->all(), $datos['pagos'], $request->user(), $caja->id);
 
-            if (($datos['mantener_ocupada'] ?? null) === false
+            if (($datos['mantener_ocupada'] ?? false) === false
                 && ! Pedido::where('cuenta_id', $id)->whereNull('anulado_at')->where('estado', '!=', 'cancelado')
                     ->where(fn ($q) => $q->where('estado', '!=', 'entregado')->orWhereColumn('pagado', '<', 'total'))->exists()) {
                 $cuenta->update(['abierta' => null, 'cerrada_at' => now()]);

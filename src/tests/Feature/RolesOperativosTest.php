@@ -102,4 +102,56 @@ class RolesOperativosTest extends TestCase
         $this->getJson('/api/usuarios')->assertForbidden();
         $this->getJson('/api/cocina')->assertForbidden();
     }
+    public function test_listo_sale_de_cocina_y_aparece_en_mesas_para_el_mozo(): void
+    {
+        [$restaurante, $mozo, $cocina, $producto] = $this->preparar();
+        app(\App\Support\RestauranteContexto::class)->ejecutar($restaurante->id, fn () => \App\Models\Mesa::create(['restaurante_id' => $restaurante->id, 'nombre' => 'Mesa 01', 'nombre_key' => 'mesa 01', 'zona' => 'Salón', 'codigo' => (string) Str::uuid(), 'activa' => true]));
+        $this->actuarComo($mozo);
+        $id = $this->postJson('/api/pedidos', [
+            'clave_operacion' => (string) Str::uuid(), 'cliente_nombre' => 'Cliente', 'tipo' => 'mesa', 'mesa' => 'Mesa 01',
+            'items' => [['producto_id' => $producto->id, 'cantidad' => 1]],
+        ])->assertCreated()->json('id');
+        $this->actuarComo($cocina);
+        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'preparando'])->assertOk();
+        $this->getJson('/api/cocina')->assertOk()->assertJsonPath('data.0.id', $id);
+        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'listo'])->assertOk();
+        $this->getJson('/api/cocina')->assertOk()->assertJsonCount(0, 'data');
+        $this->actuarComo($mozo);
+        $mesas = $this->getJson('/api/cuentas?servicio=1')->assertOk()->json('data');
+        $mesa = collect($mesas)->firstWhere('mesa', 'Mesa 01');
+        $this->assertNotNull($mesa);
+        $this->assertSame('listo', $mesa['estado']);
+        $this->assertEquals($id, $mesa['primero_listo']);
+        $this->patchJson("/api/pedidos/$id/estado", ['estado' => 'entregado'])->assertOk();
+        $mesas = $this->getJson('/api/cuentas?servicio=1')->assertOk()->json('data');
+        $this->assertSame('pendiente', collect($mesas)->firstWhere('mesa', 'Mesa 01')['estado']);
+    }
+
+    public function test_mozo_registra_efectivo_en_su_turno_sin_acceso_a_retiros(): void
+    {
+        [$restaurante, $mozo, $cocina, $producto] = $this->preparar();
+        $this->actuarComo($mozo);
+        $pedido = $this->postJson('/api/pedidos', [
+            'clave_operacion' => (string) Str::uuid(), 'cliente_nombre' => 'Cliente', 'tipo' => 'mesa', 'mesa' => '4',
+            'items' => [['producto_id' => $producto->id, 'cantidad' => 1]],
+        ])->assertCreated()->json();
+        $cuenta = $pedido['cuenta_id'];
+        $datos = ['clave_operacion' => (string) Str::uuid(), 'pagos' => [['medio_pago' => 'efectivo', 'monto' => '18.50', 'recibido' => '20.00']]];
+        $this->postJson("/api/cuentas/$cuenta/cobrar", ['clave_operacion' => (string) Str::uuid(), 'pagos' => [['medio_pago' => 'yape', 'monto' => '18.50']]])->assertUnprocessable();
+        $this->postJson("/api/cuentas/$cuenta/cobrar", $datos)->assertOk()->assertJsonPath('pendiente', '0.00')->assertJsonPath('abierta', true);
+        $this->postJson("/api/cuentas/$cuenta/cobrar", $datos)->assertOk();
+        $this->assertDatabaseCount('cobros', 1);
+        $this->assertDatabaseHas('cobros', ['user_id' => $mozo->id, 'pedido_id' => $pedido['id'], 'medio_pago' => 'efectivo', 'monto' => '18.50', 'vuelto' => '1.50']);
+        $this->assertDatabaseHas('cajas', ['user_id' => $mozo->id, 'saldo_inicial' => '0.00', 'cerrada_at' => null]);
+        $this->postJson('/api/caja/movimientos', ['tipo' => 'salida', 'monto' => 10, 'motivo' => 'Retiro'])->assertForbidden();
+        $this->assertDatabaseHas('cuentas_mesa', ['id' => $cuenta, 'abierta' => 1]);
+        $this->actuarComo($cocina);
+        $this->patchJson('/api/pedidos/'.$pedido['id'].'/estado', ['estado' => 'preparando'])->assertOk();
+        $this->patchJson('/api/pedidos/'.$pedido['id'].'/estado', ['estado' => 'listo'])->assertOk();
+        $this->actuarComo($mozo);
+        $this->patchJson('/api/pedidos/'.$pedido['id'].'/estado', ['estado' => 'entregado'])->assertOk();
+        $this->assertDatabaseHas('cuentas_mesa', ['id' => $cuenta, 'abierta' => null]);
+
+    }
+
 }

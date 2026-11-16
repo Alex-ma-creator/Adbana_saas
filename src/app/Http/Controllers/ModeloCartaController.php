@@ -17,6 +17,11 @@ class ModeloCartaController extends Controller
         $archivo = realpath(public_path(ltrim($producto->modelo_3d, '/')));
         abort_unless($archivo && str_starts_with($archivo, $root.DIRECTORY_SEPARATOR) && is_file($archivo) && strtolower(pathinfo($archivo, PATHINFO_EXTENSION)) === 'glb', 404);
 
-        return response()->file($archivo, ['Content-Type' => 'model/gltf-binary', 'Cache-Control' => 'public, max-age=300']);
+        return response()->file($archivo, [
+            'Content-Type' => 'model/gltf-binary',
+            'Cache-Control' => 'public, max-age=300',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, HEAD, OPTIONS',
+        ]);
     }
 }

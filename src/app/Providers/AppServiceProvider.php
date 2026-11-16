@@ -36,15 +36,42 @@ class AppServiceProvider extends ServiceProvider
             });
         }
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute((int) config('adbana.limite_login'))->by(strtolower((string) $request->input('email')).'|'.$request->ip());
+            $limite = app()->environment('testing')
+                ? (int) env('LIMITE_LOGIN_POR_MINUTO', 5)
+                : (int) config('adbana.limite_login');
+            return $limite <= 0
+                ? Limit::none()
+                : Limit::perMinute($limite)->by(strtolower((string) $request->input('email')).'|'.$request->ip());
         });
-        RateLimiter::for('seguimiento-publico', fn (Request $request) => [Limit::perMinute(12)->by('seguimiento:'.hash('sha256', (string) $request->query('token'))), Limit::perMinute(1200)->by('seguimiento-ip:'.$request->ip())]);
+        RateLimiter::for('seguimiento-publico', fn (Request $request) => [
+            Limit::perMinute(12)->by('seguimiento:'.hash('sha256', (string) $request->query('token'))),
+            Limit::perMinute(1200)->by('seguimiento-ip:'.$request->ip()),
+        ]);
         RateLimiter::for('pedidos-publicos', function (Request $request) {
+            $limite = app()->environment('testing')
+                ? (int) env('LIMITE_PEDIDOS_POR_MINUTO', 10)
+                : (int) config('adbana.limite_pedidos');
+            if ($limite <= 0) {
+                return Limit::none();
+            }
             $cliente = (string) $request->header('X-Adbana-Cliente', '');
             $cliente = Str::isUuid($cliente) ? $cliente : $request->ip();
             $slug = (string) $request->route('slug');
 
-            return [Limit::perMinute((int) config('adbana.limite_pedidos'))->by('cliente:'.$slug.':'.$request->ip().':'.$cliente), Limit::perMinute((int) config('adbana.limite_pedidos_ip'))->by('ip:'.$request->ip()), Limit::perMinute((int) config('adbana.limite_pedidos_restaurante'))->by('restaurante:'.$slug)];
+            $limiteIp = (int) config('adbana.limite_pedidos_ip', 300);
+            $limiteRestaurante = (int) config('adbana.limite_pedidos_restaurante', 1200);
+
+            $limits = [
+                Limit::perMinute($limite)->by('cliente:'.$slug.':'.$request->ip().':'.$cliente),
+            ];
+            if ($limiteIp > 0) {
+                $limits[] = Limit::perMinute($limiteIp)->by('ip:'.$request->ip());
+            }
+            if ($limiteRestaurante > 0) {
+                $limits[] = Limit::perMinute($limiteRestaurante)->by('restaurante:'.$slug);
+            }
+
+            return $limits;
         });
     }
 }

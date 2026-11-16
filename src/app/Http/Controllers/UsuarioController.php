@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Caja;
+use App\Models\Gasto;
+use App\Models\MovimientoStock;
+use App\Models\Pedido;
 use App\Models\User;
 use App\Support\Permisos;
 use Illuminate\Http\Request;
@@ -31,6 +34,19 @@ class UsuarioController extends Controller
                 $user->append('permisos');
                 $user->setAttribute('editable', $user->id !== $actor->id && ! $user->esDueno() && $this->puedeGestionar($actor, $user));
             });
+    }
+
+    public function show(Request $request, string $id)
+    {
+        $actor = $request->user();
+        $user = User::with('restaurante')
+            ->where('restaurante_id', $actor->restaurante_id)
+            ->findOrFail($id);
+
+        $user->append('permisos');
+        $user->setAttribute('editable', $user->id !== $actor->id && ! $user->esDueno() && $this->puedeGestionar($actor, $user));
+
+        return response()->json($user);
     }
 
     public function store(Request $request)
@@ -78,6 +94,34 @@ class UsuarioController extends Controller
             return $user;
         });
         return response()->json($user->load('restaurante')->append('permisos'));
+    }
+
+    public function destroy(Request $request, string $id)
+    {
+        return DB::transaction(function () use ($request, $id) {
+            $actor = $request->user();
+            $user = User::where('restaurante_id', $actor->restaurante_id)->lockForUpdate()->findOrFail($id);
+
+            abort_if($user->esDueno(), 404);
+            abort_if($user->id === $actor->id, 403);
+            abort_unless($this->puedeGestionar($actor, $user), 403);
+
+            $tieneHistorial = Caja::withoutGlobalScopes()->where('user_id', $user->id)->exists()
+                || Pedido::withoutGlobalScopes()->where('user_id', $user->id)->exists()
+                || MovimientoStock::withoutGlobalScopes()->where('user_id', $user->id)->exists()
+                || Gasto::withoutGlobalScopes()->where('user_id', $user->id)->exists();
+
+            if ($tieneHistorial) {
+                return response()->json([
+                    'message' => 'El miembro del equipo tiene operaciones históricas registradas. Desactívalo en lugar de eliminarlo.',
+                ], 409);
+            }
+
+            $user->tokens()->delete();
+            $user->delete();
+
+            return response()->json(['message' => 'Miembro del equipo eliminado.']);
+        });
     }
 
     private function puedeGestionar(User $actor, User $user): bool

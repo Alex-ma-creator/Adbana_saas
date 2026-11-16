@@ -18,11 +18,32 @@ class PedidoController extends Controller
 
     public function index(Request $request)
     {
-        $request->validate(['estado' => ['sometimes', 'string'], 'mesa' => ['sometimes', 'string', 'max:20'], 'q' => ['sometimes', 'nullable', 'string', 'max:120'], 'tipo' => ['sometimes', 'in:mesa,delivery,recojo'], 'desde' => ['sometimes', 'date'], 'hasta' => ['sometimes', 'date']]);
-        $pedidos = Pedido::with('detalles')->when($request->filled('mesa'), fn ($q) => $q->where('mesa', $request->input('mesa')))->when($request->filled('q'), fn ($q) => $q->where(function ($q) use ($request) {
-            $term = '%'.$request->input('q').'%';
-            $q->whereLike('cliente_nombre', $term)->orWhereLike('mesa', $term)->orWhereHas('detalles', fn ($d) => $d->whereLike('nombre_producto', $term));
-        }))->when($request->boolean('abiertos'), fn ($q) => $q->where('estado', '!=', 'cancelado')->where(fn ($q) => $q->whereNotIn('estado', ['entregado', 'cancelado'])->orWhereColumn('pagado', '<', 'total')))->when($request->filled('estado') && ! $request->boolean('abiertos'), fn ($q) => $q->whereIn('estado', explode(',', $request->input('estado'))))->when($request->filled('tipo'), fn ($q) => $q->where('tipo', $request->input('tipo')))->when($request->filled('desde'), fn ($q) => $q->where('created_at', '>=', CarbonImmutable::parse($request->input('desde'))->startOfDay()))->when($request->filled('hasta'), fn ($q) => $q->where('created_at', '<', CarbonImmutable::parse($request->input('hasta'))->startOfDay()->addDay()))->when($request->boolean('abiertos'), fn ($q) => $q->orderBy('id'), fn ($q) => $q->latest('id'))->paginate(20);
+        $request->validate([
+            'estado'   => ['sometimes', 'string'],
+            'mesa'     => ['sometimes', 'string', 'max:20'],
+            'q'        => ['sometimes', 'nullable', 'string', 'max:120'],
+            'tipo'     => ['sometimes', 'in:mesa,delivery,recojo'],
+            'desde'    => ['sometimes', 'date'],
+            'hasta'    => ['sometimes', 'date'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = $request->integer('per_page', 20);
+
+        $pedidos = Pedido::with('detalles')
+            ->when($request->filled('mesa'), fn ($q) => $q->where('mesa', $request->input('mesa')))
+            ->when($request->filled('q'), fn ($q) => $q->where(function ($q) use ($request) {
+                $term = '%'.$request->input('q').'%';
+                $q->whereLike('cliente_nombre', $term)->orWhereLike('mesa', $term)->orWhereHas('detalles', fn ($d) => $d->whereLike('nombre_producto', $term));
+            }))
+            ->when($request->boolean('abiertos'), fn ($q) => $q->where('estado', '!=', 'cancelado')->where(fn ($q) => $q->whereNotIn('estado', ['entregado', 'cancelado'])->orWhereColumn('pagado', '<', 'total')))
+            ->when($request->filled('estado') && ! $request->boolean('abiertos'), fn ($q) => $q->whereIn('estado', explode(',', $request->input('estado'))))
+            ->when($request->filled('tipo'), fn ($q) => $q->where('tipo', $request->input('tipo')))
+            ->when($request->filled('desde'), fn ($q) => $q->where('created_at', '>=', CarbonImmutable::parse($request->input('desde'))->startOfDay()))
+            ->when($request->filled('hasta'), fn ($q) => $q->where('created_at', '<', CarbonImmutable::parse($request->input('hasta'))->startOfDay()->addDay()))
+            ->when($request->boolean('abiertos'), fn ($q) => $q->orderBy('id'), fn ($q) => $q->latest('id'))
+            ->paginate($perPage);
+
         if (! $request->user()->esDueno()) {
             $pedidos->getCollection()->each(fn ($pedido) => $pedido->detalles->each->makeHidden('costo_unitario'));
         }
@@ -60,6 +81,8 @@ class PedidoController extends Controller
         $datos = $request->validate(['motivo' => ['required_if:estado,cancelado', 'nullable', 'string', 'min:5', 'max:500'], 'reponer_stock' => ['sometimes', 'boolean'], 'estado' => ['required', 'in:pendiente,confirmado,preparando,listo,entregado,cancelado']]);
         $pedido = DB::transaction(function () use ($request, $id, $datos) {
             // Bloquea la fila: evita cancelar dos veces el mismo pedido a la vez.
+            $cuentaId = Pedido::findOrFail($id)->cuenta_id;
+            $cuenta = $cuentaId ? \App\Models\CuentaMesa::lockForUpdate()->findOrFail($cuentaId) : null;
             $pedido = Pedido::lockForUpdate()->findOrFail($id);
             $permitidos = self::TRANSICIONES[$pedido->estado] ?? [];
             if (! in_array($datos['estado'], $permitidos, true)) {
@@ -87,6 +110,14 @@ class PedidoController extends Controller
             }
             $pedido->estado = $datos['estado'];
             $pedido->save();
+            if ($cuenta && $cuenta->abierta && $datos['estado'] === 'entregado') {
+                $pendientes = Pedido::where('cuenta_id', $cuenta->id)->whereNull('anulado_at')->where('estado', '!=', 'cancelado')
+                    ->where(fn ($q) => $q->where('estado', '!=', 'entregado')->orWhereColumn('pagado', '<', 'total'))->exists();
+                if (! $pendientes) {
+                    $cuenta->update(['abierta' => null, 'cerrada_at' => now()]);
+                }
+            }
+
 
             return $pedido;
         });
