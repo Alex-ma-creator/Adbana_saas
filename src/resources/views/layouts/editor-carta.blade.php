@@ -4,7 +4,7 @@
             <div><h2>Editar carta</h2><p class="muted">Elige un plato para cambiar lo que ven tus clientes.</p></div>
             <button type="button" @click="editorCarta=null; platoCarta=null" :disabled="busy">Cerrar editor</button>
         </header>
-        <form x-show="platoCarta" @submit.prevent="guardarPlatoCarta()">
+        <form class="carta-form-editor" x-show="platoCarta" @submit.prevent="guardarPlatoCarta()">
             <template x-if="platoCarta">
                 <div>
                     <label>Nombre del plato<input x-model="platoCarta.nombre" required maxlength="150"></label>
@@ -27,7 +27,7 @@
             </template>
         </form>
         <button type="button" :disabled="busy" @click="platoCarta={nombre:'', descripcion:'', precio:'', imagen:'', categoria_id:'', stock:0, activo:true}">Añadir plato</button>
-        <div class="carta-tarjetas">
+        <div class="carta-tarjetas carta-tarjetas-editor">
             <template x-for="plato in editorCarta.data.filter(p=>!p.es_insumo)" :key="plato.id">
                 <article class="card carta-plato-editor">
                     <div class="carta-foto-editor">

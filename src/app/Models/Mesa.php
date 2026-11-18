@@ -9,10 +9,10 @@ class Mesa extends Model
 {
     use BelongsToRestaurante;
 
-    protected $fillable = ['nombre', 'nombre_key', 'zona', 'activa', 'codigo'];
+    protected $fillable = ['nombre', 'nombre_key', 'zona', 'activa', 'codigo', 'capacidad'];
 
     protected function casts(): array
     {
-        return ['activa' => 'boolean'];
+        return ['activa' => 'boolean', 'capacidad' => 'integer'];
     }
 }

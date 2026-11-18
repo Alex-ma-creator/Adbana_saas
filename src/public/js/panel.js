@@ -909,6 +909,7 @@ document.addEventListener('alpine:init', () => {
             ],
 
             configNegocio: null, mesasConfig: [], avanceConfig: {}, cantidadMesas: 0,
+            mesaEditor: null, mesaError: '', guardandoMesa: false,
 
             menuAbierto: false, perfilAbierto: false, avisosAbiertos: false, notificaciones: [], dashboard: null, ultimaActualizacion: '', busquedaGlobal: '', filtroPedidos: '', tema: localStorage.getItem('adbana:tema') || 'light', perfil: {name:'',email:'',current_password:'',password:'',password_confirmation:''}, registro: false, nombre: '', restauranteNombre: '', email: '', password: '', tab: 'venta', busy: false, cargando: false, consultasBackend: 0, cargaVersion: 0, cajaEnCurso: null, error: '', aviso: '',
 
@@ -1264,7 +1265,7 @@ document.addEventListener('alpine:init', () => {
                 this.timer = setInterval(() => {
                     this.relojCocina = Date.now();
 
-                    if (this.user && !this.busy && !document.hidden && ['pedidos', 'cocina', 'mesas'].includes(this.tab)) {
+                    if (this.user && !this.busy && !this.cargando && !this.pedidosEnCurso && !document.hidden && ['pedidos', 'cocina', 'mesas'].includes(this.tab)) {
 
                         this.cargarPedidos().catch(e => this.error = e.message);
 
@@ -1273,13 +1274,22 @@ document.addEventListener('alpine:init', () => {
                 }, 15000);
 
 
-                this.timerPermisos=setInterval(()=>{if(this.user&&!this.busy&&!this.cargando&&!document.hidden)this.sincronizarPermisos().catch(e=>this.error=e.message);},30000);
+                this.timerPermisos = setInterval(() => {
+                    if (this.user && !this.busy && !this.cargando && !document.hidden) {
+                        this.sincronizarPermisos().catch(error => this.error = error.message);
+                    }
+                }, 60000);
 
             },
 
             destroy() { clearInterval(this.timer);clearInterval(this.timerPermisos); },
 
-            async login() {
+            async login(form) {
+
+                if (form) {
+                    this.email = form.elements.namedItem('email').value.trim();
+                    this.password = form.elements.namedItem('password').value;
+                }
 
                 await this.accion(async () => {
 
@@ -1339,7 +1349,7 @@ document.addEventListener('alpine:init', () => {
 
                 this.cargando = true; this.error = '';
 
-                try { await this.sincronizarPermisos(); await this.actualizar(); }
+                try { await this.actualizar(); }
 
                 catch (error) { if (version === this.cargaVersion) this.error = error.message; }
 
@@ -1378,14 +1388,22 @@ document.addEventListener('alpine:init', () => {
                 if (this.tab === 'caja') { await this.cargarCaja(); return; }
 
                 if (tab === 'ventas') {
-                    const [rep, gas] = await Promise.all([
-                        this.user.permisos.reportes ? this.api('/reportes/resumen?desde=' + this.fecha + '&hasta=' + this.fecha) : Promise.resolve(null),
-                        this.user.permisos.gastos ? this.api('/gastos?page=' + this.paginaGastos) : Promise.resolve(null),
-                    ]);
-                    if (vigente()) {
-                        if (rep) this.reporte = rep;
-                        if (gas) { this.gastosLista = gas.data || []; this.ultimaGastos = gas.last_page || 1; }
+                    const consultas = [];
+                    if (this.user.permisos.reportes) {
+                        consultas.push(this.api('/reportes/resumen?desde=' + this.fecha + '&hasta=' + this.fecha).then(reporte => {
+                            if (vigente()) this.reporte = reporte;
+                        }));
                     }
+                    if (this.user.permisos.gastos) {
+                        consultas.push(this.api('/gastos?page=' + this.paginaGastos).then(gastos => {
+                            if (!vigente()) return;
+                            this.gastosLista = gastos.data || [];
+                            this.ultimaGastos = gastos.last_page || 1;
+                        }));
+                    }
+                    const resultados = await Promise.allSettled(consultas);
+                    const fallo = resultados.find(resultado => resultado.status === 'rejected');
+                    if (fallo && vigente()) throw fallo.reason;
                     return;
                 }
 
@@ -1416,7 +1434,18 @@ document.addEventListener('alpine:init', () => {
 
             },
 
-            guardarConfiguracion() {return this.accion(async()=>{const data=await this.api('/configuracion','PUT',{...this.configNegocio,cantidad_mesas:Number(this.cantidadMesas)});this.aplicarConfiguracion(data);this.aviso='Configuración guardada. Tu carta ya utiliza estas modalidades.';});},
+            avisarLimiteMesas() {
+                this.aviso = '';
+                this.error = 'Tu plan permite hasta 25 mesas. Mejora tu plan para crear más mesas y acceder a más beneficios.';
+            },
+
+            guardarConfiguracion() {
+                if (Number(this.cantidadMesas) > 25) {
+                    this.avisarLimiteMesas();
+                    return;
+                }
+                return this.accion(async()=>{const data=await this.api('/configuracion','PUT',{...this.configNegocio,cantidad_mesas:Number(this.cantidadMesas)});this.aplicarConfiguracion(data);this.aviso='Configuración guardada. Tu carta ya utiliza estas modalidades.';});
+            },
 
             imprimirQr(mesa) {
                 const w=window.open('','_blank','width=600,height=700');if(!w){this.error='Permite la ventana de impresión en tu navegador.';return;}
@@ -1429,7 +1458,42 @@ document.addEventListener('alpine:init', () => {
                 const instructions=w.document.createElement('p');instructions.textContent='Escanea para ver nuestra carta';
                 const style=w.document.createElement('style');style.textContent='body{font-family:Arial,sans-serif;text-align:center;padding:32px;color:#111}svg{max-width:90%;height:auto}';w.document.head.append(style);w.document.body.append(title,mesaTitle,drawing,instructions);w.document.title='Carta · '+mesa.nombre;w.focus();setTimeout(()=>w.print(),300);
             },
-            guardarMesa(mesa) {return this.accion(async()=>{await this.api('/configuracion/mesas/'+mesa.id,'PATCH',{nombre:mesa.nombre,zona:mesa.zona,activa:mesa.activa});this.aviso='Mesa actualizada.';});},
+            abrirEditorMesa(mesa) {
+                this.mesaEditor = {...mesa};
+                this.mesaError = '';
+                this.$refs.editarMesaDialog.showModal();
+            },
+            cerrarEditorMesa() {
+                if (this.guardandoMesa) return;
+                this.$refs.editarMesaDialog.close();
+                this.mesaEditor = null;
+                this.mesaError = '';
+            },
+            async guardarEdicionMesa() {
+                if (this.guardandoMesa || !this.mesaEditor) return;
+                this.guardandoMesa = true;
+                this.mesaError = '';
+                const mesa = {...this.mesaEditor};
+                try {
+                    const data = await this.api('/configuracion/mesas/'+mesa.id, 'PATCH', {nombre:mesa.nombre,zona:mesa.zona,activa:mesa.activa,capacidad:mesa.capacidad === '' || mesa.capacidad == null ? null : Number(mesa.capacidad)});
+                    this.mesasConfig = this.mesasConfig.map(actual => actual.id === data.id ? data : actual);
+                    this.$refs.editarMesaDialog.close();
+                    this.mesaEditor = null;
+                    this.aviso = 'Mesa actualizada.';
+                } catch (error) {
+                    this.mesaError = error.message;
+                } finally {
+                    this.guardandoMesa = false;
+                }
+            },
+            eliminarMesa(mesa) {
+                if (!window.confirm('¿Eliminar '+mesa.nombre+'? Su código QR dejará de funcionar.')) return;
+                return this.accion(async () => {
+                    await this.api('/configuracion/mesas/'+mesa.id, 'DELETE');
+                    this.mesasConfig = this.mesasConfig.filter(actual => actual.id !== mesa.id);
+                    this.aviso = 'Mesa eliminada.';
+                });
+            },
 
             async cargarCaja() {
 

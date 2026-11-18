@@ -40,7 +40,9 @@ class ConfiguracionRestauranteController extends Controller
             'horario' => ['nullable', 'string', 'max:200'],
             'telefono' => ['nullable', 'string', 'max:30'],
             'publicado' => ['required', 'boolean'],
-            'cantidad_mesas' => ['required', 'integer', 'min:0', 'max:200'],
+            'cantidad_mesas' => ['required', 'integer', 'min:0', 'max:25'],
+        ], [
+            'cantidad_mesas.max' => 'Tu plan permite hasta 25 mesas. Mejora tu plan para crear más mesas y acceder a más beneficios.',
         ]);
         DB::transaction(function () use ($request, $datos): void {
             $restaurante = Restaurante::whereKey($request->user()->restaurante_id)->lockForUpdate()->firstOrFail();
@@ -108,7 +110,7 @@ class ConfiguracionRestauranteController extends Controller
 
     public function mesa(Request $request, int $id): JsonResponse
     {
-        $datos = $request->validate(['nombre' => ['required', 'string', 'max:20'], 'zona' => ['required', 'string', 'max:60'], 'activa' => ['required', 'boolean']]);
+        $datos = $request->validate(['nombre' => ['required', 'string', 'max:20'], 'zona' => ['required', 'string', 'max:60'], 'activa' => ['required', 'boolean'], 'capacidad' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100']]);
         $mesa = DB::transaction(function () use ($request, $datos, $id): Mesa {
             Restaurante::whereKey($request->user()->restaurante_id)->lockForUpdate()->firstOrFail();
             $mesa = Mesa::lockForUpdate()->findOrFail($id);
@@ -126,5 +128,19 @@ class ConfiguracionRestauranteController extends Controller
         });
 
         return response()->json($mesa);
+    }
+
+    public function eliminarMesa(Request $request, int $id): JsonResponse
+    {
+        DB::transaction(function () use ($request, $id): void {
+            Restaurante::whereKey($request->user()->restaurante_id)->lockForUpdate()->firstOrFail();
+            $mesa = Mesa::lockForUpdate()->findOrFail($id);
+            if (CuentaMesa::where('mesa_key', $mesa->nombre_key)->where('abierta', 1)->exists()) {
+                throw ValidationException::withMessages(['mesa' => 'Cierra la cuenta antes de eliminar esta mesa.']);
+            }
+            $mesa->delete();
+        });
+
+        return response()->json(['eliminada' => true]);
     }
 }

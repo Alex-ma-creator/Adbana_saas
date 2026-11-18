@@ -31,10 +31,20 @@ class ReporteController extends Controller
             ->where('cobrado_at', '<', $fin);
 
         $libro = LibroCobros::consulta($inicio->toDateTimeString(), $fin->toDateTimeString());
-        $ventas = Money::cents((clone $libro)->sum('monto'));
-        $brutos = Money::cents((clone $libro)->where('monto', '>', 0)->sum('monto'));
-        $devoluciones = -Money::cents((clone $libro)->where('monto', '<', 0)->sum('monto'));
-        $cantidad = (clone $cobrados)->count();
+        $totales = (clone $libro)->selectRaw(
+            'COALESCE(SUM(monto), 0) AS ventas,
+             COALESCE(SUM(CASE WHEN monto > 0 THEN monto ELSE 0 END), 0) AS brutos,
+             COALESCE(SUM(CASE WHEN monto < 0 THEN monto ELSE 0 END), 0) AS devoluciones'
+        )->first();
+        $ventas = Money::cents($totales->ventas);
+        $brutos = Money::cents($totales->brutos);
+        $devoluciones = -Money::cents($totales->devoluciones);
+
+        $conteo = (clone $cobrados)->selectRaw(
+            'COUNT(*) AS cobrados, COUNT(CASE WHEN estado = ? THEN 1 END) AS entregados',
+            ['entregado']
+        )->first();
+        $cantidad = (int) $conteo->cobrados;
 
         $porPedido = (clone $libro)->selectRaw('pedido_id, SUM(monto) as importe')->groupBy('pedido_id');
         $costos = DB::table('detalle_pedidos')->selectRaw('pedido_id, SUM(cantidad * costo_unitario) as costo')->whereIn('pedido_id', (clone $libro)->select('pedido_id'))->groupBy('pedido_id');
@@ -71,7 +81,7 @@ class ReporteController extends Controller
             'desde' => $desde,
             'hasta' => $hasta,
             'pedidos_cobrados' => $cantidad,
-            'pedidos_entregados' => (clone $cobrados)->where('estado', 'entregado')->count(),
+            'pedidos_entregados' => (int) $conteo->entregados,
             'pedidos_cancelados' => $cancelados,
             'cobros_brutos' => Money::decimal($brutos),
             'devoluciones' => Money::decimal($devoluciones),

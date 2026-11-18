@@ -1,10 +1,15 @@
 <!doctype html>
 
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="{{ csrf_token() }}"><title>Tu espacio | Adbana</title><link rel="icon" type="image/svg+xml" href="/images/adbana-logo.svg"><link rel="stylesheet" href="/css/panel.css?v=20261116-auto-tables1"><script src="/js/qrcode-2.0.4.js"></script><script src="/js/panel.js?v=20261116-auto-tables1"></script><script defer src="/js/alpine.min.js"></script><link rel="stylesheet" href="/css/carga.css?v=20261031d"><link rel="stylesheet" href="/css/operacion.css?v=20261031"><link rel="stylesheet" href="/css/carta-visual.css?v=1"></head>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="{{ csrf_token() }}"><title>Tu espacio | Adbana</title><link rel="icon" type="image/svg+xml" href="/images/adbana-logo.svg"><link rel="stylesheet" href="/css/panel.css?v=20261117-card-depth9"><script src="/js/qrcode-2.0.4.js"></script>@if (is_file(public_path('build/manifest.json')) && array_key_exists('resources/js/panel.js', json_decode(file_get_contents(public_path('build/manifest.json')), true) ?? []))
+    @vite('resources/js/panel.js')
+@else
+    <script src="/js/panel.js?v=20261117-consultas2"></script>
+    <script defer src="/js/alpine.min.js"></script>
+@endif<link rel="stylesheet" href="/css/carga.css?v=20261031d"><link rel="stylesheet" href="/css/operacion.css?v=20261031"><link rel="stylesheet" href="/css/carta-visual.css?v=editor-compacto2"></head>
 
 <body><div x-data="panel" @keydown.tab.window="atraparOperacion($event)" @offline.window="enLinea=false" @online.window="enLinea=true" :data-theme="tema" class="app-root" :class="{'vista-cocina': vistaCocina, 'vista-mesas': tab==='mesas'}" x-cloak @keydown.escape.window="menuAbierto=false;perfilAbierto=false;avisosAbiertos=false;idiomaAbierto=false;cerrarOperacion()">
 
-@include('layouts.carga', ['visible' => 'consultasBackend > 0 && (busy || cargando) && !vistaCocina', 'bloqueante' => 'busy'])
+@include('layouts.carga', ['visible' => 'consultasBackend > 0 && busy && !vistaCocina', 'bloqueante' => 'busy'])
 
 
 
@@ -56,7 +61,7 @@
 
 </div>
 
-<form class="login card" x-show="!user && authModo==='login'" @submit.prevent="login()">
+<form class="login card" x-show="!user && authModo==='login'" @submit.prevent="login($event.currentTarget)">
 
 <span class="eyebrow" x-text="t('login_welcome')">BIENVENIDO A ADBANA</span><h1 x-text="registro ? t('login_title_reg') : t('login_title_in')">Tu restaurante, en marcha</h1><p class="muted" x-text="registro ? t('login_sub_reg') : t('login_sub_in')"></p>
 
@@ -67,7 +72,7 @@
 
 <div class="auth-divider"><span x-text="t('o_separador')">o</span></div>
 
-<label x-show="registro"><span x-text="t('lbl_restaurante')">Nombre del restaurante</span><input x-model="restauranteNombre" :required="registro" maxlength="120"></label><label x-show="registro"><span x-text="t('lbl_tu_nombre')">Tu nombre</span><input x-model="nombre" :required="registro" maxlength="120"></label><label><span x-text="t('lbl_correo')">Correo</span><input type="email" x-model="email" @input="espaciosAcceso=[];espacioAcceso=''" required autocomplete="username"></label><label><span x-text="t('lbl_password')">Contraseña</span><input type="password" x-model="password" @input="espaciosAcceso=[];espacioAcceso=''" :minlength="registro ? 8 : 1" required autocomplete="current-password"></label>
+<label x-show="registro"><span x-text="t('lbl_restaurante')">Nombre del restaurante</span><input x-model="restauranteNombre" :required="registro" maxlength="120"></label><label x-show="registro"><span x-text="t('lbl_tu_nombre')">Tu nombre</span><input x-model="nombre" :required="registro" maxlength="120"></label><label><span x-text="t('lbl_correo')">Correo</span><input type="email" name="email" x-model="email" @input="espaciosAcceso=[];espacioAcceso=''" required autocomplete="username"></label><label><span x-text="t('lbl_password')">Contraseña</span><input type="password" name="password" x-model="password" @input="espaciosAcceso=[];espacioAcceso=''" :minlength="registro ? 8 : 1" required autocomplete="current-password"></label>
 
 <label x-show="!registro&&espaciosAcceso.length">Elige tu espacio<select x-model="espacioAcceso" :required="!registro&&espaciosAcceso.length>0"><option value="">Selecciona dónde trabajar</option><template x-for="e in espaciosAcceso" :key="e.id"><option :value="e.id" x-text="e.nombre+' · '+e.descripcion"></option></template></select></label><p class="muted" x-show="!registro">Una entrada para tu restaurante y la administración de Adbana. Solo verás tus accesos autorizados.</p><p class="alert" x-show="error" x-text="error" role="alert"></p><button class="primary wide" :disabled="busy" x-text="registro ? t('btn_crear_rest') : t('btn_ingresar')">Ingresar</button><button type="button" class="wide" @click="registro=!registro;espaciosAcceso=[];espacioAcceso='';error='';aviso=''" x-text="registro ? t('btn_ya_tengo') : t('btn_crear_mi_rest')"></button>
 
@@ -108,8 +113,6 @@
 <header class="top">
 
     <button class="icon-button mobile-only" :aria-label="t('abrir_menu')" :aria-expanded="menuAbierto" @click="menuAbierto=true"><svg class="icon " aria-hidden="true"><use href="/images/panel-icons.svg#menu"></use></svg></button>
-
-    <form class="global-search" @submit.prevent="buscarGlobal()"><svg class="icon " aria-hidden="true"><use href="/images/panel-icons.svg#search"></use></svg><input :aria-label="t('buscar_operacion')" x-model="busquedaGlobal" :placeholder="user.rol==='cocina'?t('buscar_comanda'):t('buscar_productos_ph')"><kbd>↵</kbd></form>
 
     <div class="top-actions"><span class="today-date" x-text="new Date().toLocaleDateString(locale,{day:'numeric',month:'short',year:'numeric'})"></span><button class="icon-button" :aria-label="t('actualizar_seccion')" :title="t('actualizar')" :disabled="busy" @click="accion(()=>actualizar())" :class="{'is-loading':busy || cargando}"><svg class="icon " aria-hidden="true"><use href="/images/panel-icons.svg#refresh"></use></svg></button>
 

@@ -53,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/configuracion', [ConfiguracionRestauranteController::class, 'update']);
         Route::post('/configuracion/logo', [ConfiguracionRestauranteController::class, 'guardarLogo']);
         Route::patch('/configuracion/mesas/{id}', [ConfiguracionRestauranteController::class, 'mesa']);
+        Route::delete('/configuracion/mesas/{id}', [ConfiguracionRestauranteController::class, 'eliminarMesa']);
         Route::get('/auditoria', [AuditoriaController::class, 'index']);
         Route::get('/backups', [BackupController::class, 'index']);
         Route::post('/backups', [BackupController::class, 'store']);

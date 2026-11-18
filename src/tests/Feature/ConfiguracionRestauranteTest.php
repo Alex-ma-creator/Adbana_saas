@@ -18,6 +18,43 @@ class ConfiguracionRestauranteTest extends TestCase
         return array_merge(['modalidades' => ['mesa', 'recojo'], 'descripcion' => 'Nuestra cocina', 'direccion' => 'Arequipa', 'horario' => '12:00 a 20:00', 'telefono' => '900000000', 'publicado' => false, 'cantidad_mesas' => 3], $cambios);
     }
 
+    public function test_guarda_capacidad_y_rechaza_cantidad_de_sillas_invalida(): void
+    {
+        $r = $this->crearRestaurante();
+        $this->actuarComo($this->crearUsuario($r));
+        $mesa = $this->putJson('/api/configuracion', $this->configuracion())->json('mesas.0');
+        $this->patchJson('/api/configuracion/mesas/'.$mesa['id'], [...$mesa, 'capacidad' => 6])
+            ->assertOk()->assertJsonPath('capacidad', 6);
+        $this->patchJson('/api/configuracion/mesas/'.$mesa['id'], [...$mesa, 'capacidad' => 0])
+            ->assertUnprocessable()->assertJsonValidationErrors('capacidad');
+        $this->assertDatabaseHas('mesas', ['id' => $mesa['id'], 'capacidad' => 6]);
+    }
+
+    public function test_elimina_mesa_sin_cuenta_abierta_y_protege_mesas_ajenas(): void
+    {
+        $r = $this->crearRestaurante();
+        $otro = $this->crearRestaurante('Otro');
+        $this->actuarComo($this->crearUsuario($r));
+        $id = $this->putJson('/api/configuracion', $this->configuracion())->json('mesas.0.id');
+        $this->actuarComo($this->crearUsuario($otro));
+        $this->deleteJson('/api/configuracion/mesas/'.$id)->assertNotFound();
+        $this->actuarComo($this->crearUsuario($r, 'mozo'));
+        $this->deleteJson('/api/configuracion/mesas/'.$id)->assertForbidden();
+        $this->actuarComo($this->crearUsuario($r));
+        $this->deleteJson('/api/configuracion/mesas/'.$id)->assertOk();
+        $this->assertDatabaseMissing('mesas', ['id' => $id]);
+    }
+
+    public function test_no_elimina_mesa_con_cuenta_abierta(): void
+    {
+        $r = $this->crearRestaurante();
+        $this->actuarComo($this->crearUsuario($r));
+        $mesa = $this->putJson('/api/configuracion', $this->configuracion())->json('mesas.0');
+        CuentaMesa::create(['mesa' => $mesa['nombre'], 'mesa_key' => $mesa['nombre_key'], 'abierta' => 1]);
+        $this->deleteJson('/api/configuracion/mesas/'.$mesa['id'])->assertUnprocessable();
+        $this->assertDatabaseHas('mesas', ['id' => $mesa['id']]);
+    }
+
     public function test_configuracion_repetida_no_duplica_mesas_y_no_publica_por_defecto(): void
     {
         $r = $this->crearRestaurante();
