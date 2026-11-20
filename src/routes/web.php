@@ -40,3 +40,7 @@ Route::get('/m/{slug}', [WebPagesController::class, 'carta'])->where('slug', '[a
 
 Route::get('/fotos-platos/{archivo}', [\App\Http\Controllers\ProductoController::class, 'foto'])
     ->where('archivo', '[A-Za-z0-9]{40}\.(jpg|jpeg|png|webp)');
+
+Route::get('/logos-restaurantes/{restaurante}/{archivo}', [\App\Http\Controllers\ConfiguracionRestauranteController::class, 'mostrarLogo'])
+    ->whereNumber('restaurante')
+    ->where('archivo', '[A-Za-z0-9_-]+\.(?:png|jpg|jpeg|webp)');

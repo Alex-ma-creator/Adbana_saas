@@ -151,7 +151,7 @@
     </style>
 </head>
 <body data-title-i18n="@yield('titulo_i18n')">
-    <div class="simple-lang" id="simple-lang">
+  <div class="simple-lang" id="simple-lang">
         <button type="button" class="simple-lang-btn" id="simple-lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Cambiar idioma">
             <svg aria-hidden="true"><use href="/images/panel-icons.svg#globe"></use></svg>
             <span id="simple-lang-code">ES</span>
@@ -306,3 +306,4 @@
     </script>
 </body>
 </html>
+

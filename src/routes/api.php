@@ -51,7 +51,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('rol:dueno')->group(function () {
         Route::get('/configuracion', [ConfiguracionRestauranteController::class, 'show']);
         Route::put('/configuracion', [ConfiguracionRestauranteController::class, 'update']);
+        Route::post('/configuracion/logo', [ConfiguracionRestauranteController::class, 'guardarLogo']);
         Route::patch('/configuracion/mesas/{id}', [ConfiguracionRestauranteController::class, 'mesa']);
+        Route::delete('/configuracion/mesas/{id}', [ConfiguracionRestauranteController::class, 'eliminarMesa']);
         Route::get('/auditoria', [AuditoriaController::class, 'index']);
         Route::get('/backups', [BackupController::class, 'index']);
         Route::post('/backups', [BackupController::class, 'store']);
@@ -67,7 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cuentas', [CuentaMesaController::class, 'index'])->middleware('permiso:pedidos,caja');
     Route::post('/mesas/{id}/ocupar', [CuentaMesaController::class, 'ocupar'])->middleware('permiso:pedidos');
     Route::get('/cuentas/{id}', [CuentaMesaController::class, 'show'])->middleware('permiso:pedidos,caja');
-    Route::post('/cuentas/{id}/cobrar', [CuentaMesaController::class, 'cobrar'])->middleware('permiso:caja');
+    Route::post('/cuentas/{id}/cobrar', [CuentaMesaController::class, 'cobrar'])->middleware('permiso:caja,cobrar_efectivo');
     Route::post('/cuentas/{id}/cerrar', [CuentaMesaController::class, 'cerrar'])->middleware('permiso:pedidos');
 
     Route::patch('/perfil', [PerfilController::class, 'update'])->middleware('rol:dueno,cajero,mozo,mozo_cajero,cocina');
