@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
 import exec from 'k6/execution';
 
@@ -10,13 +10,13 @@ const VUS_SOLICITADOS = Math.max(1, Number(__ENV.VUS || 100));
 const DURACION = __ENV.DURACION || __ENV.TIEMPO || (__ENV.MAX_DURATION || '30s');
 const MODO = (__ENV.MODO || __ENV.ESCENARIO || 'iteraciones').toLowerCase();
 
-// Blindaje Windows: evita agotar los ~16,000 puertos TCP efimeros manteniendo un pool
-// fisico seguro de hasta 600 VUs con keep-alive + multiplexacion por lotes http.batch().
-const MAX_VUS_FISICOS = Math.max(1, Number(__ENV.MAX_VUS_FISICOS || 600));
+// Blindaje Windows: evita agotar los ~16,000 puertos TCP efimeros y la cola SYN TLS de EC2
+// manteniendo un pool fisico seguro de hasta 220 VUs con keep-alive + multiplexacion http.batch().
+const MAX_VUS_FISICOS = Math.max(1, Number(__ENV.MAX_VUS_FISICOS || 220));
 const MODO_MULTIPLEXADO = VUS_SOLICITADOS > MAX_VUS_FISICOS || TOTAL_PETICIONES > 20000;
 const VUS_FISICOS = MODO_MULTIPLEXADO ? Math.min(VUS_SOLICITADOS, MAX_VUS_FISICOS) : VUS_SOLICITADOS;
 const BATCH_SIZE = MODO_MULTIPLEXADO
-  ? Math.min(25, Math.max(4, Math.ceil(VUS_SOLICITADOS / VUS_FISICOS) * 2))
+  ? Math.min(6, Math.max(2, Math.ceil(VUS_SOLICITADOS / VUS_FISICOS)))
   : 1;
 
 // Porcentaje o cantidad de pedidos que van a la base de datos
@@ -89,7 +89,7 @@ export const options = {
   discardResponseBodies: true,
   noConnectionReuse: false,
   batch: BATCH_SIZE,
-  batchPerHost: BATCH_SIZE,
+  batchPerHost: Math.min(2, BATCH_SIZE),
   setupTimeout: '5m',
   scenarios: buildScenarios(),
   thresholds: {
@@ -338,6 +338,12 @@ function construirSolicitud(data, seqIndex, vuId, inspeccionarCuerpo) {
 export default function (data) {
   const iterGlobal = exec.scenario.iterationInTest;
   const vuId = exec.vu.idInTest;
+
+  // Escalonamiento de microsegundos en el handshake TLS inicial (iteracion 0 de cada VU)
+  // para no desbordar la cola TCP SYN (somaxconn) en el milisegundo 0.
+  if (exec.vu.iterationInScenario === 0 && vuId > 15) {
+    sleep(((vuId - 1) % 60) * 0.015);
+  }
 
   if (!MODO_MULTIPLEXADO) {
     const inspeccionar = iterGlobal < 15 || (iterGlobal % 100 === 0);
