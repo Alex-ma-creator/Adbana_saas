@@ -6,16 +6,16 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
-    <link rel="stylesheet" href="/css/carta-visual.css?v=20261114qr6">
+    <link rel="stylesheet" href="/css/carta-visual.css?v=20261120ux1">
     <script>
         window.ADBANA_CONFIG = {
             arPublicUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/')),
             arPublicBaseUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/'))
         };
     </script>
-    <script src="/js/vendor/jsQR.js?v=20261114qr6"></script>
-    <script type="module" src="/js/ar-engine.js?v=20261114qr6"></script>
-    <script src="/js/carta.js?config=20261114&v=20261114qr6"></script>
+    <script src="/js/vendor/jsQR.js?v=20261120ux1"></script>
+    <script type="module" src="/js/ar-engine.js?v=20261120ux1"></script>
+    <script src="/js/carta.js?config=20261120&v=20261120ux1"></script>
     <script defer src="/js/alpine.min.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 <link rel="stylesheet" href="/css/carga.css?v=20261031d"></head>
@@ -30,27 +30,41 @@
         <button type="button" class="btn" @click="cargar()" x-text="t('reintentar')">Reintentar</button>
     </div>
 
-    <main class="contenedor" x-show="!cargando && !error">
+    <main class="contenedor" :class="{ 'tiene-pedido-activo': unidades > 0 }" x-show="!cargando && !error">
         <header class="encabezado">
             <div class="encabezado-top">
-                <div>
+                <div class="encabezado-marca">
                     <h1 x-text="restaurante && restaurante.nombre"></h1>
                     <p x-text="t('sub_encabezado')">Arma tu pedido y envíalo directo al restaurante.</p>
                 </div>
-                <div class="carta-lang" @click.outside="idiomaAbierto = false">
-                    <button type="button" class="carta-lang-btn" :class="{'is-open': idiomaAbierto}" :aria-label="t('cambiar_idioma')" :aria-expanded="idiomaAbierto" aria-haspopup="listbox" @click="idiomaAbierto = !idiomaAbierto">
-                        <svg aria-hidden="true"><use href="/images/panel-icons.svg#globe"></use></svg>
-                        <span x-text="idiomaActual.corto">ES</span>
-                        <svg class="chev" aria-hidden="true"><use href="/images/panel-icons.svg#chevron"></use></svg>
+                <div class="encabezado-acciones">
+                    <button type="button"
+                            class="btn-pedido-header"
+                            :class="{ 'is-active': unidades > 0, 'is-pulse': carritoPulse }"
+                            @click="if (unidades > 0) abierto = true">
+                        <span class="pedido-header-icon" aria-hidden="true">🛒</span>
+                        <span class="pedido-header-txt">
+                            <span x-text="t('btn_pedido_header')">Pedido</span>
+                            <span class="pedido-header-badge" x-text="'(' + unidades + ')'"></span>
+                        </span>
+                        <strong class="pedido-header-total" x-show="unidades > 0" x-text="'· ' + money(total)"></strong>
                     </button>
-                    <div class="carta-lang-menu" x-show="idiomaAbierto" role="listbox" :aria-label="t('cambiar_idioma')">
-                        <template x-for="lang in idiomasDisponibles" :key="lang.codigo">
-                            <button type="button" class="carta-lang-opt" :class="{active: idioma === lang.codigo}" role="option" :aria-selected="idioma === lang.codigo" @click="cambiarIdioma(lang.codigo)">
-                                <span class="carta-lang-code" x-text="lang.corto"></span>
-                                <span class="carta-lang-label" x-text="lang.nombre"></span>
-                                <svg class="carta-lang-check" x-show="idioma === lang.codigo" aria-hidden="true"><use href="/images/panel-icons.svg#check"></use></svg>
-                            </button>
-                        </template>
+
+                    <div class="carta-lang" @click.outside="idiomaAbierto = false">
+                        <button type="button" class="carta-lang-btn" :class="{'is-open': idiomaAbierto}" :aria-label="t('cambiar_idioma')" :aria-expanded="idiomaAbierto" aria-haspopup="listbox" @click="idiomaAbierto = !idiomaAbierto">
+                            <svg aria-hidden="true"><use href="/images/panel-icons.svg#globe"></use></svg>
+                            <span x-text="idiomaActual.corto">ES</span>
+                            <svg class="chev" aria-hidden="true"><use href="/images/panel-icons.svg#chevron"></use></svg>
+                        </button>
+                        <div class="carta-lang-menu" x-show="idiomaAbierto" role="listbox" :aria-label="t('cambiar_idioma')">
+                            <template x-for="lang in idiomasDisponibles" :key="lang.codigo">
+                                <button type="button" class="carta-lang-opt" :class="{active: idioma === lang.codigo}" role="option" :aria-selected="idioma === lang.codigo" @click="cambiarIdioma(lang.codigo)">
+                                    <span class="carta-lang-code" x-text="lang.corto"></span>
+                                    <span class="carta-lang-label" x-text="lang.nombre"></span>
+                                    <svg class="carta-lang-check" x-show="idioma === lang.codigo" aria-hidden="true"><use href="/images/panel-icons.svg#check"></use></svg>
+                                </button>
+                            </template>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -127,21 +141,49 @@
                         </div>
 
                         <div class="info">
-                            <strong x-text="p.nombre"></strong>
-                            <small x-show="p.descripcion" x-text="p.descripcion"></small>
-                            <span class="precio" x-text="money(p.precio)"></span>
+                            <div class="info-cabecera">
+                                <strong class="plato-titulo" x-text="p.nombre"></strong>
+                                <span class="precio" x-text="money(p.precio)"></span>
+                            </div>
+                            <small class="plato-desc" x-show="p.descripcion" x-text="p.descripcion"></small>
                             <span class="agotado" x-show="!p.disponible" x-text="t('agotado')">Agotado</span>
                         </div>
 
-                        <div class="acciones-plato">
-                            <button type="button" class="btn" @click="avisoFallback3D = ''; $el.closest('.plato').querySelector('dialog.carta-detalle').showModal()">Ver detalles</button>
-                            <button type="button" class="btn btn-ar-accion" x-show="p.modelo_3d" @click="abrirAR(p, document.getElementById('mv-' + p.id))">
-                                📱 Ver en tu mesa (AR)
+                        <div class="acciones-plato" :class="{ 'una-columna': !p.modelo_3d }">
+                            <button type="button" class="btn-accion-sec" @click="avisoFallback3D = ''; $el.closest('.plato').querySelector('dialog.carta-detalle').showModal()" x-text="t('ver_detalles')">Ver detalles</button>
+                            <button type="button" class="btn-accion-sec btn-ar-accion" x-show="p.modelo_3d" @click="abrirAR(p, document.getElementById('mv-' + p.id))" x-text="t('ver_en_mesa_ar')">
+                                📷 Ver en tu mesa (AR)
                             </button>
                         </div>
 
+                        <div class="compra-plato" x-show="p.disponible">
+                            <button type="button"
+                                    class="btn-agregar-pedido"
+                                    x-show="cantidad(p) === 0"
+                                    :aria-label="t('agregar_aria') + p.nombre"
+                                    @click="agregar(p)"
+                                    x-text="t('btn_agregar_pedido')">
+                                🛒 Agregar al pedido
+                            </button>
+
+                            <div class="control-cantidad-pedido" x-show="cantidad(p) > 0">
+                                <button type="button"
+                                        class="btn-step"
+                                        :aria-label="t('quitar_aria') + p.nombre"
+                                        @click="quitar(p)">−</button>
+                                <span class="estado-cantidad-pedido">
+                                    <strong x-text="cantidad(p)"></strong>
+                                    <span x-text="t('en_tu_pedido')">en tu pedido</span>
+                                </span>
+                                <button type="button"
+                                        class="btn-step"
+                                        :aria-label="t('agregar_aria') + p.nombre"
+                                        @click="agregar(p)">+</button>
+                            </div>
+                        </div>
+
                         <dialog class="carta-detalle" :id="'dlg-detalle-' + p.id" @click.self="$el.close()">
-                            <form method="dialog"><button class="btn" aria-label="Cerrar ficha">Cerrar</button></form>
+                            <form method="dialog"><button class="btn-sec btn-cerrar-detalle" aria-label="Cerrar ficha">✕ Cerrar</button></form>
                             <div class="ar-fallback-banner" x-show="avisoFallback3D" x-cloak role="alert">
                                 <p x-text="avisoFallback3D"></p>
                                 <small>👆 Puedes girar y hacer zoom al plato 3D aquí mismo con el dedo o mouse, o abrir la carta en tu celular.</small>
@@ -198,14 +240,6 @@
                             <p x-text="p.descripcion"></p>
                             <strong class="precio-detalle" x-text="money(p.precio)"></strong>
                         </dialog>
-
-                        <div class="cantidad" x-show="p.disponible">
-                            <button type="button" class="redondo" :aria-label="t('quitar_aria') + p.nombre"
-                                    x-show="cantidad(p) > 0" @click="quitar(p)">−</button>
-                            <span x-show="cantidad(p) > 0" x-text="cantidad(p)"></span>
-                            <button type="button" class="redondo" :aria-label="t('agregar_aria') + p.nombre"
-                                    @click="agregar(p)">+</button>
-                        </div>
                     </article>
                 </template>
                 </div>
@@ -213,10 +247,17 @@
         </template>
     </main>
 
-    <button type="button" class="barra-carrito" x-show="unidades > 0 && !abierto" @click="abierto = true">
-        <span x-text="unidades + (unidades === 1 ? t('producto_s') : t('producto_p'))"></span>
-        <strong><span x-text="t('ver_pedido')">Ver pedido · </span><span x-text="money(total)"></span></strong>
-    </button>
+    <div class="dock-carrito-wrap" x-show="unidades > 0 && !abierto" x-cloak>
+        <button type="button" class="barra-carrito" @click="abierto = true">
+            <span class="barra-carrito-izq">
+                <span class="barra-carrito-badge" x-text="unidades"></span>
+                <span x-text="unidades === 1 ? t('producto_s').trim() : t('producto_p').trim()"></span>
+            </span>
+            <strong class="barra-carrito-der">
+                <span x-text="t('ver_pedido')">Ver pedido · </span><span x-text="money(total)"></span>
+            </strong>
+        </button>
+    </div>
 
     <div class="fondo" x-show="abierto" @click.self="abierto = false">
         <form class="hoja" @submit.prevent="enviar()" novalidate>
@@ -276,7 +317,14 @@
             </label>
 
             <label class="campo"><span x-text="t('telefono')">Teléfono</span> <span x-show="form.tipo !== 'delivery'" x-text="t('opcional')">(opcional)</span>
-                <input type="tel" x-model="form.cliente_telefono" maxlength="30" inputmode="tel" autocomplete="tel">
+                <input type="tel"
+                       x-model="form.cliente_telefono"
+                       inputmode="numeric"
+                       pattern="[0-9]*"
+                       maxlength="15"
+                       autocomplete="tel"
+                       placeholder="Ej. 987654321"
+                       @input="form.cliente_telefono = $event.target.value.replace(/[^0-9]/g, '').slice(0, 15)">
             </label>
 
             <label class="campo"><span x-text="t('notas_rest')">Notas para el restaurante (opcional)</span>

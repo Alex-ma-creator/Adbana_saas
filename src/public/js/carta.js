@@ -16,6 +16,11 @@ const ADBANA_I18N_CARTA = {
         agotado: 'Agotado',
         quitar_aria: 'Quitar ',
         agregar_aria: 'Agregar ',
+        btn_agregar_pedido: '🛒 Agregar al pedido',
+        en_tu_pedido: 'en tu pedido',
+        btn_pedido_header: 'Pedido',
+        ver_detalles: 'Ver detalles',
+        ver_en_mesa_ar: '📷 Ver en tu mesa (AR)',
         producto_s: ' producto',
         producto_p: ' productos',
         ver_pedido: 'Ver pedido · ',
@@ -50,6 +55,7 @@ const ADBANA_I18N_CARTA = {
         err_carga: 'No pudimos cargar la carta. Revisa tu conexión e intenta de nuevo.',
         val_nombre: 'Escribe tu nombre.',
         val_telefono: 'Escribe un teléfono de contacto.',
+        val_telefono_formato: 'El teléfono solo debe contener números (6 a 15 dígitos).',
         val_direccion: 'Escribe la dirección de entrega.',
         val_mesa: 'Indica el número de mesa.',
         val_items: 'Agrega al menos un producto.',
@@ -78,6 +84,11 @@ const ADBANA_I18N_CARTA = {
         agotado: 'Sold out',
         quitar_aria: 'Remove ',
         agregar_aria: 'Add ',
+        btn_agregar_pedido: '🛒 Add to order',
+        en_tu_pedido: 'in your order',
+        btn_pedido_header: 'Order',
+        ver_detalles: 'View details',
+        ver_en_mesa_ar: '📷 View on your table (AR)',
         producto_s: ' item',
         producto_p: ' items',
         ver_pedido: 'View order · ',
@@ -112,6 +123,7 @@ const ADBANA_I18N_CARTA = {
         err_carga: 'We could not load the menu. Check your connection and try again.',
         val_nombre: 'Please enter your name.',
         val_telefono: 'Please enter a contact phone number.',
+        val_telefono_formato: 'Phone number must contain only digits (6 to 15 numbers).',
         val_direccion: 'Please enter the delivery address.',
         val_mesa: 'Please enter your table number.',
         val_items: 'Add at least one item.',
@@ -140,6 +152,11 @@ const ADBANA_I18N_CARTA = {
         agotado: 'Esgotado',
         quitar_aria: 'Remover ',
         agregar_aria: 'Adicionar ',
+        btn_agregar_pedido: '🛒 Adicionar ao pedido',
+        en_tu_pedido: 'no seu pedido',
+        btn_pedido_header: 'Pedido',
+        ver_detalles: 'Ver detalhes',
+        ver_en_mesa_ar: '📷 Ver na sua mesa (AR)',
         producto_s: ' produto',
         producto_p: ' produtos',
         ver_pedido: 'Ver pedido · ',
@@ -174,6 +191,7 @@ const ADBANA_I18N_CARTA = {
         err_carga: 'Não foi possível carregar o cardápio. Verifique sua conexão e tente novamente.',
         val_nombre: 'Digite seu nome.',
         val_telefono: 'Digite um telefone de contato.',
+        val_telefono_formato: 'O telefone deve conter apenas números (6 a 15 dígitos).',
         val_direccion: 'Digite o endereço de entrega.',
         val_mesa: 'Informe o número da mesa.',
         val_items: 'Adicione pelo menos um produto.',
@@ -202,6 +220,11 @@ const ADBANA_I18N_CARTA = {
         agotado: 'Épuisé',
         quitar_aria: 'Retirer ',
         agregar_aria: 'Ajouter ',
+        btn_agregar_pedido: '🛒 Ajouter à la commande',
+        en_tu_pedido: 'dans votre commande',
+        btn_pedido_header: 'Commande',
+        ver_detalles: 'Voir les détails',
+        ver_en_mesa_ar: '📷 Voir sur votre table (AR)',
         producto_s: ' produit',
         producto_p: ' produits',
         ver_pedido: 'Voir la commande · ',
@@ -236,6 +259,7 @@ const ADBANA_I18N_CARTA = {
         err_carga: 'Impossible de charger le menu. Vérifiez votre connexion et réessayez.',
         val_nombre: 'Veuillez saisir votre nom.',
         val_telefono: 'Veuillez saisir un numéro de téléphone.',
+        val_telefono_formato: 'Le téléphone ne doit contenir que des chiffres (6 à 15 chiffres).',
         val_direccion: 'Veuillez saisir l’adresse de livraison.',
         val_mesa: 'Veuillez indiquer le numéro de table.',
         val_items: 'Ajoutez au moins un produit.',
@@ -286,6 +310,8 @@ document.addEventListener('alpine:init', () => {
             visorARActivo: null,
             _timerGuiaAR: null,
             _timerBloqueoAR: null,
+            carritoPulse: false,
+            _timerPulse: null,
             mesas: [],
             datosMesaNombre: null,
             form: {
@@ -706,6 +732,12 @@ document.addEventListener('alpine:init', () => {
                 if (!p.disponible || this.cantidad(p) >= 99) return;
                 this.carrito[p.id] = this.cantidad(p) + 1;
                 this.guardarCarrito();
+                this.carritoPulse = false;
+                if (this._timerPulse) clearTimeout(this._timerPulse);
+                this._timerPulse = setTimeout(() => {
+                    this.carritoPulse = true;
+                    this._timerPulse = setTimeout(() => { this.carritoPulse = false; }, 450);
+                }, 10);
             },
 
             quitar(p) {
@@ -751,11 +783,19 @@ document.addEventListener('alpine:init', () => {
                 const f = this.form;
                 const faltan = [];
 
+                f.cliente_telefono = String(f.cliente_telefono || '').replace(/[^0-9]/g, '').slice(0, 15);
+
                 if (!f.cliente_nombre.trim()) faltan.push(this.t('val_nombre'));
 
                 if (f.tipo === 'delivery') {
-                    if (!f.cliente_telefono.trim()) faltan.push(this.t('val_telefono'));
+                    if (!f.cliente_telefono) {
+                        faltan.push(this.t('val_telefono'));
+                    } else if (!/^[0-9]{6,15}$/.test(f.cliente_telefono)) {
+                        faltan.push(this.t('val_telefono_formato'));
+                    }
                     if (!f.direccion.trim()) faltan.push(this.t('val_direccion'));
+                } else if (f.cliente_telefono && !/^[0-9]{6,15}$/.test(f.cliente_telefono)) {
+                    faltan.push(this.t('val_telefono_formato'));
                 }
 
                 if (f.tipo === 'mesa') {
@@ -790,9 +830,10 @@ document.addEventListener('alpine:init', () => {
                     const almacenamiento = 'pedido-pendiente:' + this.slug;
                     let pendiente = JSON.parse(sessionStorage.getItem(almacenamiento) || 'null');
                     if (!pendiente) {
+                        const telLimpio = String(f.cliente_telefono || '').replace(/[^0-9]/g, '').slice(0, 15);
                         pendiente = {
                             clave_operacion: crypto.randomUUID(),
-                            cliente_nombre: f.cliente_nombre.trim(), cliente_telefono: f.cliente_telefono.trim() || null,
+                            cliente_nombre: f.cliente_nombre.trim(), cliente_telefono: telLimpio || null,
                             tipo: f.tipo, mesa: f.tipo === 'mesa' ? f.mesa.trim() : null,
                             direccion: f.tipo === 'delivery' ? f.direccion.trim() : null, notas: f.notas.trim() || null,
                             items: Object.entries(this.carrito).map(([id,cantidad]) => ({producto_id:Number(id),cantidad})),

@@ -117,7 +117,7 @@ class CartaController extends Controller
         $datos = $request->validate([
             'clave_operacion' => ['required', 'uuid'],
             'cliente_nombre' => ['required', 'string', 'max:120'],
-            'cliente_telefono' => ['required_if:tipo,delivery', 'nullable', 'string', 'max:30'],
+            'cliente_telefono' => ['required_if:tipo,delivery', 'nullable', 'string', 'max:15', 'regex:/^[0-9]{6,15}$/'],
             'tipo' => ['required', 'in:mesa,delivery,recojo'],
             'mesa' => ['required_if:tipo,mesa', 'nullable', 'string', 'max:20'],
             'direccion' => ['required_if:tipo,delivery', 'nullable', 'string', 'max:255'],
@@ -125,6 +125,8 @@ class CartaController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.producto_id' => ['required', 'integer'],
             'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:100'],
+        ], [
+            'cliente_telefono.regex' => 'El teléfono solo debe contener números.',
         ]);
 
         // Une productos repetidos y los ordena por id (evita bloqueos cruzados entre pedidos).
