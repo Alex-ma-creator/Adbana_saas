@@ -16,6 +16,13 @@ final class PedidoPublicoIdempotente
         $huella = hash('sha256', json_encode($datos, JSON_THROW_ON_ERROR));
 
         return DB::transaction(function () use ($restauranteId, $clave, $huella, $crear) {
+            if (DB::connection()->getDriverName() === 'pgsql') {
+                $lockTimeoutMs = max(200, (int) config('adbana.db_lock_timeout_ms', 1800));
+                $statementTimeoutMs = max(500, (int) config('adbana.db_statement_timeout_ms', 3500));
+                DB::statement("SET LOCAL lock_timeout = '{$lockTimeoutMs}ms'");
+                DB::statement("SET LOCAL statement_timeout = '{$statementTimeoutMs}ms'");
+            }
+
             $ahora = now();
             $insertados = DB::table('solicitudes_publicas')->insertOrIgnore([
                 'restaurante_id' => $restauranteId,

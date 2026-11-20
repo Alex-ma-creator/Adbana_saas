@@ -135,6 +135,16 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'structured' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_STRUCTURED_LEVEL', 'info'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => storage_path('logs/adbana-structured.json.log'),
+            ],
+            'formatter' => \App\Logging\StructuredJsonFormatter::class,
+        ],
+
     ],
 
 ];

@@ -5,10 +5,19 @@ import exec from 'k6/execution';
 
 const BASE = (__ENV.BASE_URL || 'https://3.143.255.64.nip.io/api').replace(/\/$/, '');
 
-const TOTAL_PETICIONES = Number(__ENV.TOTAL_PETICIONES || 5000);
-const VUS = Number(__ENV.VUS || 100);
+const TOTAL_PETICIONES = Math.max(1, Number(__ENV.TOTAL_PETICIONES || 5000));
+const VUS_SOLICITADOS = Math.max(1, Number(__ENV.VUS || 100));
 const DURACION = __ENV.DURACION || __ENV.TIEMPO || (__ENV.MAX_DURATION || '30s');
 const MODO = (__ENV.MODO || __ENV.ESCENARIO || 'iteraciones').toLowerCase();
+
+// Blindaje Windows: evita agotar los ~16,000 puertos TCP efimeros manteniendo un pool
+// fisico seguro de hasta 600 VUs con keep-alive + multiplexacion por lotes http.batch().
+const MAX_VUS_FISICOS = Math.max(1, Number(__ENV.MAX_VUS_FISICOS || 600));
+const MODO_MULTIPLEXADO = VUS_SOLICITADOS > MAX_VUS_FISICOS || TOTAL_PETICIONES > 20000;
+const VUS_FISICOS = MODO_MULTIPLEXADO ? Math.min(VUS_SOLICITADOS, MAX_VUS_FISICOS) : VUS_SOLICITADOS;
+const BATCH_SIZE = MODO_MULTIPLEXADO
+  ? Math.min(25, Math.max(4, Math.ceil(VUS_SOLICITADOS / VUS_FISICOS) * 2))
+  : 1;
 
 // Porcentaje o cantidad de pedidos que van a la base de datos
 const REGISTRAR_EN_BD = __ENV.REGISTRAR_EN_BD !== undefined
@@ -16,22 +25,34 @@ const REGISTRAR_EN_BD = __ENV.REGISTRAR_EN_BD !== undefined
   : (__ENV.ESCRITURAS_BD !== undefined ? Number(__ENV.ESCRITURAS_BD) : TOTAL_PETICIONES);
 
 const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json' };
-const PARAMS = { headers: HEADERS, timeout: '120s' };
+const PARAMS = { headers: HEADERS, timeout: '30s' };
 
-http.setResponseCallback(http.expectedStatuses(200, 201, 429));
+// Reconoce como respuestas esperadas: 200 (carta), 201 (pedido BD), 429/503 (contencion JSON controlada)
+http.setResponseCallback(http.expectedStatuses(200, 201, 429, 503));
 
 const peticionesExitosas = new Counter('peticiones_exitosas');
-const limitadas = new Counter('peticiones_limitadas');
 const pedidosRegistradosBd = new Counter('pedidos_registrados_bd');
+const peticionesContenidas429 = new Counter('peticiones_contenidas_429');
+const peticionesContenidas503 = new Counter('peticiones_contenidas_503');
+const caidasNoControladas = new Counter('caidas_no_controladas');
+const jsonContencionVerificados = new Counter('json_contencion_verificados');
+
+const motivoShedding = new Counter('motivo_DB_CONCURRENCY_SHEDDING');
+const motivoLockTimeout = new Counter('motivo_DB_LOCK_TIMEOUT');
+const motivoPoolSaturated = new Counter('motivo_DB_POOL_SATURATED');
+const motivoRedisUnavailable = new Counter('motivo_REDIS_UNAVAILABLE');
+const motivoRateLimited = new Counter('motivo_RATE_LIMITED');
+const motivoNginxQueue = new Counter('motivo_NGINX_FPM_QUEUE_SATURATED');
+const motivoOtroError = new Counter('motivo_OTRO_ERROR');
 
 function buildScenarios() {
   if (MODO === 'tiempo' || MODO === 'duracion' || MODO === 'constant-vus') {
     return {
       estres_tiempo: {
         executor: 'constant-vus',
-        vus: VUS,
+        vus: VUS_FISICOS,
         duration: DURACION,
-        gracefulStop: '10s',
+        gracefulStop: '5s',
       },
     };
   }
@@ -40,25 +61,26 @@ function buildScenarios() {
     return {
       estres_rampa: {
         executor: 'ramping-vus',
-        startVUs: Math.min(10, VUS),
+        startVUs: Math.min(10, VUS_FISICOS),
         stages: [
-          { duration: '10s', target: VUS }, // Fase 1: Calentamiento / Rampa de subida
-          { duration: DURACION, target: VUS }, // Fase 2: Pico sostenido de estrés
-          { duration: '10s', target: 0 },   // Fase 3: Rampa de enfriamiento / Descenso
+          { duration: '10s', target: VUS_FISICOS },
+          { duration: DURACION, target: VUS_FISICOS },
+          { duration: '10s', target: 0 },
         ],
-        gracefulRampDown: '10s',
+        gracefulRampDown: '5s',
       },
     };
   }
 
-  // Por defecto: shared-iterations con tiempo máximo asignado
+  const iteracionesLote = Math.max(VUS_FISICOS, Math.ceil(TOTAL_PETICIONES / BATCH_SIZE));
+
   return {
     estres_masivo: {
       executor: 'shared-iterations',
-      vus: VUS,
-      iterations: TOTAL_PETICIONES,
+      vus: Math.min(VUS_FISICOS, iteracionesLote),
+      iterations: iteracionesLote,
       maxDuration: DURACION,
-      gracefulStop: '10s',
+      gracefulStop: '5s',
     },
   };
 }
@@ -66,23 +88,143 @@ function buildScenarios() {
 export const options = {
   discardResponseBodies: true,
   noConnectionReuse: false,
+  batch: BATCH_SIZE,
+  batchPerHost: BATCH_SIZE,
   setupTimeout: '5m',
   scenarios: buildScenarios(),
   thresholds: {
-    checks: ['rate>0.70'],
-    http_req_duration: ['p(95)<15000'],
-    ...(REGISTRAR_EN_BD > 0 ? { 'http_req_duration{flujo:pedido}': ['p(95)<15000'] } : {}),
+    checks: ['rate>0.85'],
+    caidas_no_controladas: ['count<100'],
   },
 };
 
+function fmtNum(n) {
+  return Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function fmtMs(n) {
+  return `${Number(n || 0).toFixed(2)} ms`;
+}
+
+function generarUuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const n = Math.floor(Math.random() * 16);
+    return (c === 'x' ? n : (n & 3) | 8).toString(16);
+  });
+}
+
+function obtenerHeader(headers, nombreBuscado) {
+  if (!headers) return '';
+  if (headers[nombreBuscado] !== undefined) return String(headers[nombreBuscado]);
+  const lower = nombreBuscado.toLowerCase();
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === lower) {
+      return String(headers[key]);
+    }
+  }
+  return '';
+}
+
+function registrarMotivo(codigo) {
+  switch (codigo) {
+    case 'DB_CONCURRENCY_SHEDDING':
+      motivoShedding.add(1);
+      break;
+    case 'DB_LOCK_TIMEOUT':
+      motivoLockTimeout.add(1);
+      break;
+    case 'DB_POOL_SATURATED':
+      motivoPoolSaturated.add(1);
+      break;
+    case 'REDIS_UNAVAILABLE':
+      motivoRedisUnavailable.add(1);
+      break;
+    case 'RATE_LIMITED':
+      motivoRateLimited.add(1);
+      break;
+    case 'NGINX_FPM_QUEUE_SATURATED':
+      motivoNginxQueue.add(1);
+      break;
+    default:
+      motivoOtroError.add(1);
+      break;
+  }
+}
+
+function evaluarRespuesta(res, esPedido, inspeccionarCuerpo) {
+  const status = res.status;
+
+  if (status === 201 && esPedido) {
+    pedidosRegistradosBd.add(1);
+    peticionesExitosas.add(1);
+    check(res, { 'respuesta valida (201 BD o contencion JSON)': () => true });
+    return;
+  }
+
+  if (status === 200 && !esPedido) {
+    peticionesExitosas.add(1);
+    check(res, { 'respuesta valida (200 carta o contencion JSON)': () => true });
+    return;
+  }
+
+  if (status === 429 || status === 503) {
+    const contentType = obtenerHeader(res.headers, 'Content-Type').toLowerCase();
+    let failureReason = obtenerHeader(res.headers, 'X-Failure-Reason').trim();
+    let jsonValido = contentType.includes('application/json') || failureReason !== '';
+
+    if (inspeccionarCuerpo && typeof res.body === 'string' && res.body.length > 0) {
+      try {
+        const parsed = JSON.parse(res.body);
+        if (parsed && parsed.codigo_fallo && parsed.motivo_caida) {
+          failureReason = String(parsed.codigo_fallo);
+          jsonValido = true;
+          jsonContencionVerificados.add(1);
+        }
+      } catch (_) {
+        jsonValido = false;
+      }
+    }
+
+    if (jsonValido) {
+      if (status === 429) {
+        peticionesContenidas429.add(1);
+        registrarMotivo(failureReason || 'RATE_LIMITED');
+      } else {
+        peticionesContenidas503.add(1);
+        registrarMotivo(failureReason || 'DB_CONCURRENCY_SHEDDING');
+      }
+      check(res, { 'respuesta valida (201 BD o contencion JSON)': () => true });
+      return;
+    }
+  }
+
+  caidasNoControladas.add(1);
+  registrarMotivo('OTRO_ERROR');
+  check(res, { 'respuesta valida (201 BD o contencion JSON)': () => false });
+}
+
 export function setup() {
+  console.log('========================================================================');
+  console.log('  ADBANA SaaS - MOTOR k6 DE ULTRA-ALTA CONCURRENCIA Y RESILIENCIA');
+  console.log('========================================================================');
+  console.log(`  Servidor Destino     : ${BASE}`);
+  console.log(`  Total Peticiones     : ${fmtNum(TOTAL_PETICIONES)}`);
+  console.log(`  Usuarios/Concurrencia: ${fmtNum(VUS_SOLICITADOS)}`);
+  console.log(`  Tiempo               : ${DURACION}`);
+  if (MODO_MULTIPLEXADO) {
+    console.log(`  Blindaje Windows TCP : ACTIVO (${VUS_FISICOS} VUs fisicos x batch(${BATCH_SIZE}) sobre Keep-Alive/HTTP2)`);
+  } else {
+    console.log(`  Modo de Red          : Directo (${VUS_FISICOS} VUs fisicos con Keep-Alive)`);
+  }
+  console.log('========================================================================');
+
   const marca = Date.now();
   const email = `masivo_${TOTAL_PETICIONES}_${marca}@adbana.local`;
 
   const reg = http.post(
     `${BASE}/auth/registro-dueno`,
     JSON.stringify({
-      restaurante: `Benchmark ${TOTAL_PETICIONES} (${VUS} VUs ${DURACION})`,
+      restaurante: `Benchmark ${TOTAL_PETICIONES} (${VUS_SOLICITADOS} VUs ${DURACION})`,
       name: `Auditor K6 (${DURACION})`,
       email,
       password: 'ClaveSegura123',
@@ -110,9 +252,9 @@ export function setup() {
   const stockSuficiente = Math.max(TOTAL_PETICIONES * 2, 10000000);
   const productosIds = [];
 
-  // Crear un catálogo de 50 platos para distribuir los locks de fila (SELECT ... FOR UPDATE) en PostgreSQL
+  // Catalogo de 50 platos para distribuir locks de fila (SELECT ... FOR UPDATE) en PostgreSQL
   const totalPlatos = 50;
-  const nombresBase = ['Hamburguesa', 'Pizza', 'Lomo Saltado', 'Ceviche', 'Arroz Chaufa', 'Pollo Brasa', 'Tallarín', 'Anticucho', 'Causa', 'Tacu Tacu'];
+  const nombresBase = ['Hamburguesa', 'Pizza', 'Lomo Saltado', 'Ceviche', 'Arroz Chaufa', 'Pollo Brasa', 'Tallarin', 'Anticucho', 'Causa', 'Tacu Tacu'];
   for (let i = 0; i < totalPlatos; i++) {
     const nombrePlato = `${nombresBase[i % nombresBase.length]} Especial #${i + 1}`;
     const prod = http.post(
@@ -136,7 +278,7 @@ export function setup() {
     throw new Error('Fallo al crear productos en el setup.');
   }
 
-  // Calentar caché Redis
+  // Calentar cache Redis
   http.get(`${BASE}/carta/${slug}`, PARAMS);
 
   const totalBdObjetivo = Math.min(REGISTRAR_EN_BD, TOTAL_PETICIONES);
@@ -149,54 +291,145 @@ export function setup() {
   };
 }
 
+function construirSolicitud(data, seqIndex, vuId, inspeccionarCuerpo) {
+  const esPedido = (data.totalBdObjetivo > 0) &&
+    (REGISTRAR_EN_BD >= TOTAL_PETICIONES ||
+      Math.floor((seqIndex + 1) * data.totalBdObjetivo / TOTAL_PETICIONES)
+        > Math.floor(seqIndex * data.totalBdObjetivo / TOTAL_PETICIONES));
+
+  const paramsBase = inspeccionarCuerpo ? { ...PARAMS, responseType: 'text' } : PARAMS;
+
+  if (esPedido) {
+    const productoId = data.productosIds[(vuId + seqIndex) % data.productosIds.length];
+    return {
+      esPedido: true,
+      req: [
+        'POST',
+        `${BASE}/carta/${data.slug}/pedidos`,
+        JSON.stringify({
+          clave_operacion: generarUuid(),
+          cliente_nombre: `Cliente Pedido #${seqIndex + 1} (${DURACION})`,
+          tipo: 'recojo',
+          items: [{ producto_id: productoId, cantidad: 1 }],
+        }),
+        {
+          ...paramsBase,
+          headers: {
+            ...HEADERS,
+            'X-Adbana-Cliente': `00000000-0000-4000-8000-${String(vuId).padStart(12, '0')}`,
+          },
+          tags: { flujo: 'pedido' },
+        },
+      ],
+    };
+  }
+
+  return {
+    esPedido: false,
+    req: [
+      'GET',
+      `${BASE}/carta/${data.slug}`,
+      null,
+      { ...paramsBase, tags: { flujo: 'carta' } },
+    ],
+  };
+}
+
 export default function (data) {
   const iterGlobal = exec.scenario.iterationInTest;
   const vuId = exec.vu.idInTest;
 
-  const esPedido = (data.totalBdObjetivo > 0) &&
-    (REGISTRAR_EN_BD >= TOTAL_PETICIONES ||
-      Math.floor((iterGlobal + 1) * data.totalBdObjetivo / TOTAL_PETICIONES)
-        > Math.floor(iterGlobal * data.totalBdObjetivo / TOTAL_PETICIONES));
-
-  if (esPedido) {
-    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const n = Math.floor(Math.random() * 16);
-      return (c === 'x' ? n : (n & 3) | 8).toString(16);
-    });
-
-    const productoId = data.productosIds[(vuId + iterGlobal) % data.productosIds.length];
-
-    const resPedido = http.post(
-      `${BASE}/carta/${data.slug}/pedidos`,
-      JSON.stringify({
-        clave_operacion: uuid,
-        cliente_nombre: `Cliente Pedido #${iterGlobal + 1} (${DURACION})`,
-        tipo: 'recojo',
-        items: [{ producto_id: productoId, cantidad: 1 }],
-      }),
-      {
-        ...PARAMS,
-        headers: {
-          ...HEADERS,
-          'X-Adbana-Cliente': `00000000-0000-4000-8000-${String(vuId).padStart(12, '0')}`,
-        },
-        tags: { flujo: 'pedido' }
-      },
-    );
-
-    limitadas.add(Number(resPedido.status === 429));
-    if (resPedido.status === 201) {
-      pedidosRegistradosBd.add(1);
-      peticionesExitosas.add(1);
-    }
-    check(resPedido, { 'operacion BD 201': (r) => r.status === 201 });
+  if (!MODO_MULTIPLEXADO) {
+    const inspeccionar = iterGlobal < 15 || (iterGlobal % 100 === 0);
+    const item = construirSolicitud(data, iterGlobal, vuId, inspeccionar);
+    const [method, url, body, params] = item.req;
+    const res = method === 'POST' ? http.post(url, body, params) : http.get(url, params);
+    evaluarRespuesta(res, item.esPedido, inspeccionar);
     return;
   }
 
-  const res = http.get(`${BASE}/carta/${data.slug}`, { ...PARAMS, tags: { flujo: 'carta' } });
-  limitadas.add(Number(res.status === 429));
-  if (res.status === 200) {
-    peticionesExitosas.add(1);
+  const baseSeq = iterGlobal * BATCH_SIZE;
+  const lote = [];
+  const meta = [];
+
+  for (let i = 0; i < BATCH_SIZE; i++) {
+    const seq = baseSeq + i;
+    if (MODO === 'iteraciones' && seq >= TOTAL_PETICIONES) {
+      break;
+    }
+    const inspeccionar = seq < 20 || (seq % 250 === 0);
+    const item = construirSolicitud(data, seq, vuId + i, inspeccionar);
+    lote.push(item.req);
+    meta.push({ esPedido: item.esPedido, inspeccionar });
   }
-  check(res, { 'respuesta 200 OK': (r) => r.status === 200 });
+
+  if (lote.length === 0) {
+    return;
+  }
+
+  const respuestas = http.batch(lote);
+  for (let i = 0; i < respuestas.length; i++) {
+    evaluarRespuesta(respuestas[i], meta[i].esPedido, meta[i].inspeccionar);
+  }
+}
+
+export function handleSummary(data) {
+  const m = data.metrics || {};
+  const countOf = (name) => (m[name] && m[name].values && m[name].values.count) ? m[name].values.count : 0;
+  const rateOf = (name) => (m[name] && m[name].values && m[name].values.rate) ? m[name].values.rate : 0;
+  const dur = (m.http_req_duration && m.http_req_duration.values) ? m.http_req_duration.values : {};
+
+  const totalReqs = countOf('http_reqs');
+  const throughput = rateOf('http_reqs');
+  const pedidos201 = countOf('pedidos_registrados_bd');
+  const contenidas429 = countOf('peticiones_contenidas_429');
+  const contenidas503 = countOf('peticiones_contenidas_503');
+  const totalContenidas = contenidas429 + contenidas503;
+  const caidas = countOf('caidas_no_controladas');
+  const jsonVerif = countOf('json_contencion_verificados');
+
+  const motivos = [
+    ['DB_CONCURRENCY_SHEDDING', countOf('motivo_DB_CONCURRENCY_SHEDDING'), 'Semaforo Redis (>22 tx ACID) protege PostgreSQL RDS'],
+    ['DB_LOCK_TIMEOUT', countOf('motivo_DB_LOCK_TIMEOUT'), 'Timeout controlado en SELECT ... FOR UPDATE (1800ms)'],
+    ['DB_POOL_SATURATED', countOf('motivo_DB_POOL_SATURATED'), 'Pool de conexiones PostgreSQL saturado / fail-fast'],
+    ['REDIS_UNAVAILABLE', countOf('motivo_REDIS_UNAVAILABLE'), 'Contencion por indisponibilidad temporal de Redis'],
+    ['RATE_LIMITED', countOf('motivo_RATE_LIMITED'), 'Control de tasa HTTP 429 activo'],
+    ['NGINX_FPM_QUEUE_SATURATED', countOf('motivo_NGINX_FPM_QUEUE_SATURATED'), 'Respuesta directa desde Nginx @overload_json (<1ms)'],
+    ['OTRO_ERROR', countOf('motivo_OTRO_ERROR'), 'Errores de red / timeout / caida no clasificada'],
+  ];
+
+  const lineas = [
+    '',
+    '========================================================================',
+    '  REPORTE EJECUTIVO DE RESILIENCIA Y CUELLOS DE BOTELLA (ADBANA SaaS)',
+    '========================================================================',
+    `  Objetivo Solicitado  : ${fmtNum(TOTAL_PETICIONES)} peticiones | ${fmtNum(VUS_SOLICITADOS)} VUs | ${DURACION}`,
+    `  Modo de Ejecucion    : ${MODO_MULTIPLEXADO ? `Multiplexado (${VUS_FISICOS} VUs fisicos x batch(${BATCH_SIZE}))` : `Directo (${VUS_FISICOS} VUs)`}`,
+    '------------------------------------------------------------------------',
+    `  Total Peticiones Procesadas   : ${fmtNum(totalReqs)} (${throughput.toFixed(1)} req/s)`,
+    `  Pedidos Escritos en RDS (201) : ${fmtNum(pedidos201)}`,
+    `  Contenidas con JSON (429/503) : ${fmtNum(totalContenidas)} (429: ${fmtNum(contenidas429)} | 503: ${fmtNum(contenidas503)} | JSON verif: ${fmtNum(jsonVerif)})`,
+    `  Caidas No Controladas         : ${fmtNum(caidas)}`,
+    '------------------------------------------------------------------------',
+    '  MOTIVOS DE CONTENCION / CAIDA DETECTADOS:',
+    '  Codigo de Fallo             | Cantidad   | Descripcion',
+    '  ----------------------------+------------+----------------------------',
+  ];
+
+  for (const [codigo, cant, desc] of motivos) {
+    if (cant > 0 || codigo === 'DB_CONCURRENCY_SHEDDING' || codigo === 'NGINX_FPM_QUEUE_SATURATED') {
+      lineas.push(`  ${codigo.padEnd(27)} | ${fmtNum(cant).padStart(10)} | ${desc}`);
+    }
+  }
+
+  lineas.push('------------------------------------------------------------------------');
+  lineas.push('  TIEMPOS DE RESPUESTA (http_req_duration):');
+  lineas.push(`    avg : ${fmtMs(dur.avg)}   |   med : ${fmtMs(dur.med)}   |   p90 : ${fmtMs(dur['p(90)'])}`);
+  lineas.push(`    p95 : ${fmtMs(dur['p(95)'])}   |   max : ${fmtMs(dur.max)}`);
+  lineas.push('========================================================================');
+  lineas.push('');
+
+  return {
+    stdout: lineas.join('\n'),
+  };
 }

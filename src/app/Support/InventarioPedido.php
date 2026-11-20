@@ -14,6 +14,13 @@ final class InventarioPedido
     /** @return array<int, string> Costos unitarios históricos, calculados con la receta vigente. */
     public function descontar(Pedido $pedido, Collection $cantidades, ?int $userId, string $motivo, ?Collection $productosBloqueados = null): array
     {
+        if (DB::connection()->getDriverName() === 'pgsql' && DB::transactionLevel() > 0) {
+            $lockTimeoutMs = max(200, (int) config('adbana.db_lock_timeout_ms', 1800));
+            $statementTimeoutMs = max(500, (int) config('adbana.db_statement_timeout_ms', 3500));
+            DB::statement("SET LOCAL lock_timeout = '{$lockTimeoutMs}ms'");
+            DB::statement("SET LOCAL statement_timeout = '{$statementTimeoutMs}ms'");
+        }
+
         $recetas = DB::table('recetas')
             ->where('restaurante_id', $pedido->restaurante_id)
             ->whereIn('producto_id', $cantidades->keys())

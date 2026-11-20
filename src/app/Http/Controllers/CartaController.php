@@ -9,6 +9,7 @@ use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Restaurante;
+use App\Support\ControlResiliencia;
 use App\Support\CuentasMesa;
 use App\Support\InventarioPedido;
 use App\Support\Money;
@@ -141,73 +142,95 @@ class CartaController extends Controller
             ]);
         }
 
-        $pedido = app(RestauranteContexto::class)->ejecutar($restaurante['id'], function () use ($datos, $restaurante, $cantidades) {
-            return app(PedidoPublicoIdempotente::class)->ejecutar(
-                $restaurante['id'], $datos['clave_operacion'], $datos,
-                function () use ($datos, $restaurante, $cantidades) {
-                    $modalidades = $restaurante['configuracion']['modalidades'] ?? ['mesa', 'recojo', 'delivery'];
-                    if (! in_array($datos['tipo'], $modalidades, true)) {
-                        throw ValidationException::withMessages(['tipo' => 'El restaurante no ofrece esta modalidad.']);
-                    }
-
-                    $productos = Producto::where('activo', true)->where('es_insumo', false)->whereIn('id', $cantidades->keys())
-                        ->orderBy('id')->lockForUpdate()
-                        ->get(['id', 'nombre', 'precio', 'costo', 'stock', 'requiere_cocina'])
-                        ->keyBy('id');
-                    if ($productos->count() !== $cantidades->count()) {
-                        throw ValidationException::withMessages(['items' => 'Hay productos que ya no están disponibles.']);
-                    }
-
-                    $cuenta = $datos['tipo'] === 'mesa' ? app(CuentasMesa::class)->abrir($datos['mesa']) : null;
-
-                    $totalCents = 0;
-                    foreach ($cantidades as $productoId => $cantidad) {
-                        $producto = $productos[$productoId];
-                        $subtotal = Money::cents($producto->precio) * $cantidad;
-                        $totalCents += $subtotal;
-                        if ($totalCents > 9999999999) {
-                            throw ValidationException::withMessages(['items' => 'El total excede el máximo permitido.']);
-                        }
-                    }
-
-                    $pedido = Pedido::create(collect($datos)->except(['items', 'clave_operacion'])->all() + [
-                        'restaurante_id' => $restaurante['id'],
-                        'estado'         => 'pendiente',
-                        'total'          => Money::decimal($totalCents),
-                        'cuenta_id'      => $cuenta?->id,
-                    ]);
-
-                    $costos = app(InventarioPedido::class)->descontar($pedido, $cantidades, null, 'pedido', $productos);
-
-                    $ahora = now();
-                    $detallesInsert = [];
-                    $detallesModelos = [];
-
-                    foreach ($cantidades as $productoId => $cantidad) {
-                        $producto = $productos[$productoId];
-                        $subtotal = Money::decimal(Money::cents($producto->precio) * $cantidad);
-                        $fila = [
-                            'pedido_id'       => $pedido->id,
-                            'producto_id'     => $producto->id,
-                            'nombre_producto' => $producto->nombre,
-                            'cantidad'        => $cantidad,
-                            'precio_unitario' => $producto->precio,
-                            'costo_unitario'  => $costos[$productoId],
-                            'requiere_cocina' => (bool) $producto->requiere_cocina,
-                            'subtotal'        => $subtotal,
-                            'created_at'      => $ahora,
-                            'updated_at'      => $ahora,
-                        ];
-                        $detallesInsert[] = $fila;
-                        $detallesModelos[] = (new DetallePedido())->forceFill($fila);
-                    }
-
-                    DetallePedido::insert($detallesInsert);
-
-                    return $pedido->setRelation('detalles', collect($detallesModelos));
-                }
+        // Capa 2: Semáforo Atómico de Concurrencia en Redis antes de abrir conexión a PostgreSQL RDS.
+        $ranura = ControlResiliencia::adquirirRanuraDb();
+        if (! $ranura['adquirido']) {
+            return ControlResiliencia::respuestaContenida(
+                request: $request,
+                status: 503,
+                codigoFallo: 'DB_CONCURRENCY_SHEDDING',
+                motivoCaida: sprintf(
+                    'Cuello de botella controlado: límite de %d transacciones ACID simultáneas hacia PostgreSQL RDS alcanzado (%d activas) para proteger la memoria RAM de 1 GiB y evitar saturación de locks.',
+                    $ranura['limite'],
+                    $ranura['activas'],
+                ),
+                cuelloBotella: 'postgresql_lock_for_update',
+                reintentable: true,
+                retryAfterMs: 250,
             );
-        });
+        }
+
+        try {
+            $pedido = app(RestauranteContexto::class)->ejecutar($restaurante['id'], function () use ($datos, $restaurante, $cantidades) {
+                return app(PedidoPublicoIdempotente::class)->ejecutar(
+                    $restaurante['id'], $datos['clave_operacion'], $datos,
+                    function () use ($datos, $restaurante, $cantidades) {
+                        $modalidades = $restaurante['configuracion']['modalidades'] ?? ['mesa', 'recojo', 'delivery'];
+                        if (! in_array($datos['tipo'], $modalidades, true)) {
+                            throw ValidationException::withMessages(['tipo' => 'El restaurante no ofrece esta modalidad.']);
+                        }
+
+                        $productos = Producto::where('activo', true)->where('es_insumo', false)->whereIn('id', $cantidades->keys())
+                            ->orderBy('id')->lockForUpdate()
+                            ->get(['id', 'nombre', 'precio', 'costo', 'stock', 'requiere_cocina'])
+                            ->keyBy('id');
+                        if ($productos->count() !== $cantidades->count()) {
+                            throw ValidationException::withMessages(['items' => 'Hay productos que ya no están disponibles.']);
+                        }
+
+                        $cuenta = $datos['tipo'] === 'mesa' ? app(CuentasMesa::class)->abrir($datos['mesa']) : null;
+
+                        $totalCents = 0;
+                        foreach ($cantidades as $productoId => $cantidad) {
+                            $producto = $productos[$productoId];
+                            $subtotal = Money::cents($producto->precio) * $cantidad;
+                            $totalCents += $subtotal;
+                            if ($totalCents > 9999999999) {
+                                throw ValidationException::withMessages(['items' => 'El total excede el máximo permitido.']);
+                            }
+                        }
+
+                        $pedido = Pedido::create(collect($datos)->except(['items', 'clave_operacion'])->all() + [
+                            'restaurante_id' => $restaurante['id'],
+                            'estado'         => 'pendiente',
+                            'total'          => Money::decimal($totalCents),
+                            'cuenta_id'      => $cuenta?->id,
+                        ]);
+
+                        $costos = app(InventarioPedido::class)->descontar($pedido, $cantidades, null, 'pedido', $productos);
+
+                        $ahora = now();
+                        $detallesInsert = [];
+                        $detallesModelos = [];
+
+                        foreach ($cantidades as $productoId => $cantidad) {
+                            $producto = $productos[$productoId];
+                            $subtotal = Money::decimal(Money::cents($producto->precio) * $cantidad);
+                            $fila = [
+                                'pedido_id'       => $pedido->id,
+                                'producto_id'     => $producto->id,
+                                'nombre_producto' => $producto->nombre,
+                                'cantidad'        => $cantidad,
+                                'precio_unitario' => $producto->precio,
+                                'costo_unitario'  => $costos[$productoId],
+                                'requiere_cocina' => (bool) $producto->requiere_cocina,
+                                'subtotal'        => $subtotal,
+                                'created_at'      => $ahora,
+                                'updated_at'      => $ahora,
+                            ];
+                            $detallesInsert[] = $fila;
+                            $detallesModelos[] = (new DetallePedido())->forceFill($fila);
+                        }
+
+                        DetallePedido::insert($detallesInsert);
+
+                        return $pedido->setRelation('detalles', collect($detallesModelos));
+                    }
+                );
+            });
+        } finally {
+            ControlResiliencia::liberarRanuraDb();
+        }
 
         return response()->json([
             'seguimiento_token' => Crypt::encryptString(json_encode(['pedido_id' => $pedido->id, 'restaurante_id' => $restaurante['id'], 'expira' => now()->addDays(2)->timestamp], JSON_THROW_ON_ERROR)),

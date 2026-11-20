@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\ControlResiliencia;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -43,6 +44,19 @@ class HealthController extends Controller
             $servicios['cache']['error'] = 'Sin conexión al motor de caché';
         }
 
+        $activasDb = ControlResiliencia::transaccionesActivasDb();
+        $limiteDb = max(1, (int) config('adbana.max_db_active_tx', 22));
+        $saturacionPct = round(min(100.0, ($activasDb / $limiteDb) * 100), 1);
+
+        $estadoCuelloBotella = match (true) {
+            ! $saludable => 'degraded',
+            $activasDb >= $limiteDb => 'saturated_shedding_active',
+            $saturacionPct >= 75.0 => 'elevated_pressure',
+            default => 'optimal',
+        };
+
+        $erroresContenidos = ControlResiliencia::resumenErroresContenidos();
+
         $codigo = $saludable ? 200 : 503;
 
         return response()->json([
@@ -50,6 +64,18 @@ class HealthController extends Controller
             'timestamp' => now()->toIso8601String(),
             'total_ms' => round((microtime(true) - $inicio) * 1000, 2),
             'services' => $servicios,
+            'memoria_ram' => [
+                'usada_mb' => round(memory_get_usage(true) / 1048576, 2),
+                'pico_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
+                'limite_php' => (string) ini_get('memory_limit'),
+            ],
+            'concurrencia' => [
+                'transacciones_activas_bd' => $activasDb,
+                'limite_transacciones_bd' => $limiteDb,
+                'saturacion_pct' => $saturacionPct,
+                'estado_cuello_botella' => $estadoCuelloBotella,
+            ],
+            'errores_contenidos' => $erroresContenidos,
         ], $codigo);
     }
 }
