@@ -10,13 +10,13 @@ const VUS_SOLICITADOS = Math.max(1, Number(__ENV.VUS || 100));
 const DURACION = __ENV.DURACION || __ENV.TIEMPO || (__ENV.MAX_DURATION || '30s');
 const MODO = (__ENV.MODO || __ENV.ESCENARIO || 'iteraciones').toLowerCase();
 
-// Blindaje Windows: evita agotar los ~16,000 puertos TCP efimeros y la cola SYN TLS de EC2
-// manteniendo un pool fisico seguro de hasta 220 VUs con keep-alive + multiplexacion http.batch().
-const MAX_VUS_FISICOS = Math.max(1, Number(__ENV.MAX_VUS_FISICOS || 220));
-const MODO_MULTIPLEXADO = VUS_SOLICITADOS > MAX_VUS_FISICOS || TOTAL_PETICIONES > 20000;
-const VUS_FISICOS = MODO_MULTIPLEXADO ? Math.min(VUS_SOLICITADOS, MAX_VUS_FISICOS) : VUS_SOLICITADOS;
+// Calibracion de Concurrencia para k6 en Windows:
+// Soporta desde 100 hasta miles de VUs segun lo solicitado por el usuario.
+const LIMITE_SEGURO_VUS = Math.max(1, Number(__ENV.MAX_VUS_FISICOS || 2000));
+const VUS_FISICOS = Math.min(VUS_SOLICITADOS, LIMITE_SEGURO_VUS);
+const MODO_MULTIPLEXADO = TOTAL_PETICIONES > 50000 && VUS_SOLICITADOS > LIMITE_SEGURO_VUS;
 const BATCH_SIZE = MODO_MULTIPLEXADO
-  ? Math.min(6, Math.max(2, Math.ceil(VUS_SOLICITADOS / VUS_FISICOS)))
+  ? Math.min(5, Math.max(2, Math.ceil(TOTAL_PETICIONES / (VUS_FISICOS * 20))))
   : 1;
 
 // Porcentaje o cantidad de pedidos que van a la base de datos

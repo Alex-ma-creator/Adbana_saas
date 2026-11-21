@@ -2,10 +2,10 @@
 setlocal
 
 set PETICIONES=%1
-if "%PETICIONES%"=="" set PETICIONES=5000
+if "%PETICIONES%"=="" set PETICIONES=10000
 
 set USUARIOS=%2
-if "%USUARIOS%"=="" set USUARIOS=100
+if "%USUARIOS%"=="" set USUARIOS=1000
 
 set TIEMPO=%3
 if "%TIEMPO%"=="" set TIEMPO=30s
@@ -28,15 +28,15 @@ if exist "%~dp0tools\k6.exe" goto MODO_NATIVO
 goto MODO_DOCKER
 
 :MODO_NATIVO
-echo [MODO NATIVO] Ejecutando con k6 standalone - Blindaje TCP Windows activo
+echo [MODO NATIVO] Ejecutando con k6 standalone (%USUARIOS% VUs directos)
 echo.
-"%~dp0tools\k6.exe" run -e BASE_URL=%BASE_URL% -e TOTAL_PETICIONES=%PETICIONES% -e VUS=%USUARIOS% -e DURACION=%TIEMPO% -e MODO=iteraciones "%~dp0k6\estres-masivo.js"
+"%~dp0tools\k6.exe" run -e BASE_URL=%BASE_URL% -e TOTAL_PETICIONES=%PETICIONES% -e VUS=%USUARIOS% -e MAX_VUS_FISICOS=%USUARIOS% -e DURACION=%TIEMPO% -e MODO=iteraciones "%~dp0k6\estres-masivo.js"
 goto FIN
 
 :MODO_DOCKER
 echo [MODO DOCKER] k6 local no encontrado, usando imagen Docker...
 echo.
-docker run --rm -i -v "%~dp0k6:/scripts" grafana/k6 run -e BASE_URL=%BASE_URL% -e TOTAL_PETICIONES=%PETICIONES% -e VUS=%USUARIOS% -e DURACION=%TIEMPO% -e MODO=iteraciones /scripts/estres-masivo.js
+docker run --rm -i -v "%~dp0k6:/scripts" grafana/k6 run -e BASE_URL=%BASE_URL% -e TOTAL_PETICIONES=%PETICIONES% -e VUS=%USUARIOS% -e MAX_VUS_FISICOS=%USUARIOS% -e DURACION=%TIEMPO% -e MODO=iteraciones /scripts/estres-masivo.js
 goto FIN
 
 :FIN
