@@ -312,6 +312,9 @@ document.addEventListener('alpine:init', () => {
             _timerBloqueoAR: null,
             carritoPulse: false,
             _timerPulse: null,
+            personalizaciones3D: {},
+            versionIngredientes3D: 0,
+            visorModal3DCustomActivo: {},
             mesas: [],
             datosMesaNombre: null,
             form: {
@@ -530,18 +533,156 @@ document.addEventListener('alpine:init', () => {
                 return false;
             },
 
+            obtenerChipsIngredientes(p) {
+                if (!p || !p.modelo_3d) return [];
+                if (window.AdbanaQRAR && typeof window.AdbanaQRAR.obtenerRecetaIngredientes === 'function') {
+                    return window.AdbanaQRAR.obtenerRecetaIngredientes(p);
+                }
+                const nombre = String(p.nombre || '').toLowerCase();
+                if (nombre.includes('hamburguesa') || nombre.includes('burger')) {
+                    return [
+                        { id: 'carne1', icono: '🥩', nombre: 'Carne 1', esExtra: false },
+                        { id: 'carne2', icono: '🥓', nombre: 'Doble Carne', esExtra: false },
+                        { id: 'queso', icono: '🧀', nombre: 'Queso', esExtra: false },
+                        { id: 'verduras', icono: '🍅', nombre: 'Tomate/Lechuga', esExtra: false },
+                        { id: 'extra_carne', icono: '➕', nombre: 'Extra Carne', esExtra: true },
+                    ];
+                }
+                if (nombre.includes('brocheta') || nombre.includes('anticucho') || nombre.includes('parrilla')) {
+                    return [
+                        { id: 'carne_brocheta', icono: '🥩', nombre: 'Trozos de Carne', esExtra: false },
+                        { id: 'verduras_brocheta', icono: '🫑', nombre: 'Pimientos/Verduras', esExtra: false },
+                        { id: 'doble_porcion', icono: '➕', nombre: 'Doble Porción', esExtra: true },
+                    ];
+                }
+                if (nombre.includes('torta') || nombre.includes('pastel') || nombre.includes('chocolate') || nombre.includes('fresa')) {
+                    return [
+                        { id: 'fresas', icono: '🍓', nombre: 'Fresas', esExtra: false },
+                        { id: 'cobertura', icono: '🍫', nombre: 'Crema/Cobertura', esExtra: false },
+                        { id: 'extra_fresas', icono: '➕', nombre: 'Extra Fresas', esExtra: true },
+                    ];
+                }
+                return [
+                    { id: 'ing_principal', icono: '🥩', nombre: 'Ingrediente Principal', esExtra: false },
+                    { id: 'ing_toppings', icono: '🥗', nombre: 'Guarnición / Toppings', esExtra: false },
+                    { id: 'ing_extra', icono: '➕', nombre: 'Porción Extra', esExtra: true },
+                ];
+            },
+
+            ingredienteEstaActivo(p, ingId) {
+                void this.versionIngredientes3D;
+                if (!p || !window.AdbanaQRAR || typeof window.AdbanaQRAR.obtenerEstadoPlato !== 'function') {
+                    return ingId.indexOf('extra') === -1 && ingId.indexOf('doble') === -1;
+                }
+                const st = window.AdbanaQRAR.obtenerEstadoPlato(p);
+                return Boolean(st && st[ingId]);
+            },
+
+            resumenPersonalizacionPlato(p) {
+                void this.versionIngredientes3D;
+                if (!p) return '';
+                if (this.personalizaciones3D[p.id]) return this.personalizaciones3D[p.id];
+                if (window.AdbanaQRAR && typeof window.AdbanaQRAR.obtenerResumenPersonalizacion === 'function') {
+                    return window.AdbanaQRAR.obtenerResumenPersonalizacion(p);
+                }
+                return '';
+            },
+
+            abrirDetallePlato(p, dlgEl) {
+                this.avisoFallback3D = '';
+                const dlg = dlgEl || (p && p.id !== undefined ? document.getElementById('dlg-detalle-' + p.id) : null);
+                if (dlg && typeof dlg.showModal === 'function' && !dlg.open) {
+                    dlg.showModal();
+                }
+                if (p && p.modelo_3d) {
+                    this.visorModal3DCustomActivo[p.id] = true;
+                    setTimeout(() => {
+                        const container = document.getElementById('visor-config-modal-' + p.id);
+                        if (container && window.AdbanaQRAR && typeof window.AdbanaQRAR.montarVisorModal3D === 'function') {
+                            window.AdbanaQRAR.montarVisorModal3D(p, container);
+                        }
+                    }, 40);
+                }
+            },
+
+            cerrarDetallePlato(p, dlgEl) {
+                if (window.AdbanaQRAR && typeof window.AdbanaQRAR.desmontarVisorModal3D === 'function') {
+                    window.AdbanaQRAR.desmontarVisorModal3D();
+                }
+                const dlg = dlgEl || (p && p.id !== undefined ? document.getElementById('dlg-detalle-' + p.id) : null);
+                if (dlg && dlg.open && typeof dlg.close === 'function') {
+                    dlg.close();
+                }
+            },
+
+            alternarIngredientePlato(p, ingId) {
+                if (!p || !window.AdbanaQRAR || typeof window.AdbanaQRAR.alternarIngrediente !== 'function') return;
+                if (!this.visorModal3DCustomActivo[p.id]) {
+                    this.visorModal3DCustomActivo[p.id] = true;
+                    const container = document.getElementById('visor-config-modal-' + p.id);
+                    if (container && typeof window.AdbanaQRAR.montarVisorModal3D === 'function') {
+                        window.AdbanaQRAR.montarVisorModal3D(p, container);
+                    }
+                }
+                window.AdbanaQRAR.alternarIngrediente(p, ingId);
+                this.versionIngredientes3D++;
+                const resumen = window.AdbanaQRAR.obtenerResumenPersonalizacion(p);
+                if (resumen) {
+                    this.personalizaciones3D[p.id] = resumen;
+                } else {
+                    delete this.personalizaciones3D[p.id];
+                }
+                this.sincronizarNotasPersonalizacion3D();
+            },
+
+            sincronizarNotasPersonalizacion3D() {
+                const notasActuales = String(this.form.notas || '');
+                const lineasManuales = notasActuales
+                    .split('\n')
+                    .map((l) => l.trim())
+                    .filter((l) => l && !l.startsWith('Personalizado en 3D/AR ('));
+
+                const lineas3D = Object.values(this.personalizaciones3D).filter(Boolean);
+                const todas = [...lineasManuales, ...lineas3D];
+                this.form.notas = todas.join('\n').slice(0, 500);
+            },
+
+            confirmarPersonalizacionYAgregar(p, dlgEl) {
+                if (!p) return;
+                if (window.AdbanaQRAR && typeof window.AdbanaQRAR.obtenerResumenPersonalizacion === 'function') {
+                    const resumen = window.AdbanaQRAR.obtenerResumenPersonalizacion(p);
+                    if (resumen) {
+                        this.personalizaciones3D[p.id] = resumen;
+                    } else {
+                        delete this.personalizaciones3D[p.id];
+                    }
+                }
+                if (p.disponible && this.cantidad(p) === 0) {
+                    this.agregar(p);
+                } else {
+                    this.carritoPulse = false;
+                    if (this._timerPulse) clearTimeout(this._timerPulse);
+                    this._timerPulse = setTimeout(() => {
+                        this.carritoPulse = true;
+                        this._timerPulse = setTimeout(() => { this.carritoPulse = false; }, 450);
+                    }, 10);
+                }
+                this.sincronizarNotasPersonalizacion3D();
+                if (dlgEl) {
+                    this.cerrarDetallePlato(p, dlgEl);
+                }
+            },
+
             abrirFallbackVisor3D(p, mensaje) {
-                this.avisoFallback3D = mensaje || 'No se pudo acceder a la cámara. Explora el plato en nuestro visor 3D interactivo (gira y haz zoom con el dedo o mouse).';
+                this.avisoFallback3D = mensaje || 'No se pudo acceder a la cámara. Personaliza y explora el plato en nuestro configurador 3D interactivo (gira y haz zoom con el dedo o mouse).';
                 this.platoARSeleccionado = p;
                 if (p && p.id !== undefined) {
                     const dlg = document.getElementById('dlg-detalle-' + p.id);
-                    if (dlg && typeof dlg.showModal === 'function' && !dlg.open) {
+                    if (dlg && typeof dlg.showModal === 'function') {
                         try {
-                            dlg.showModal();
+                            this.abrirDetallePlato(p, dlg);
                             return;
                         } catch (e) {}
-                    } else if (dlg && dlg.open) {
-                        return;
                     }
                 }
                 const ua = navigator.userAgent || '';
@@ -553,9 +694,7 @@ document.addEventListener('alpine:init', () => {
             abrirModalQrEscritorio(p) {
                 if (p && p.id !== undefined) {
                     const dlg = document.getElementById('dlg-detalle-' + p.id);
-                    if (dlg && dlg.open && typeof dlg.close === 'function') {
-                        try { dlg.close(); } catch (e) {}
-                    }
+                    this.cerrarDetallePlato(p, dlg);
                 }
                 this.platoARSeleccionado = p;
                 this.mensajeT5SinAR = false;
@@ -565,16 +704,38 @@ document.addEventListener('alpine:init', () => {
             async abrirAR(p, elViewer) {
                 if (this.redireccionarHttpsMovilSiNecesario()) return;
 
+                if (window.AdbanaQRAR && typeof window.AdbanaQRAR.desmontarVisorModal3D === 'function') {
+                    window.AdbanaQRAR.desmontarVisorModal3D();
+                }
+
                 this.mensajeT5SinAR = false;
                 this.avisoFallback3D = '';
                 this.trackingPerdido = false;
                 this.ancladoFijo = false;
 
-                // Motor principal universal: Anclaje AR instantáneo por Código QR de la mesa (WebRTC + jsQR + Three.js)
+                // Motor principal universal: Anclaje AR instantáneo + Configurador de Ingredientes en Tiempo Real
                 if (window.AdbanaQRAR && typeof window.AdbanaQRAR.iniciar === 'function') {
-                    await window.AdbanaQRAR.iniciar(p, (mensajeError) => {
-                        this.abrirFallbackVisor3D(p, mensajeError);
-                    });
+                    await window.AdbanaQRAR.iniciar(
+                        p,
+                        (mensajeError) => {
+                            this.abrirFallbackVisor3D(p, mensajeError);
+                        },
+                        {
+                            onConfirmarPedido: (plato) => {
+                                const dlg = plato && plato.id !== undefined ? document.getElementById('dlg-detalle-' + plato.id) : null;
+                                this.confirmarPersonalizacionYAgregar(plato, dlg);
+                            },
+                            onCambioIngredientes: (plato, estado, resumen) => {
+                                this.versionIngredientes3D++;
+                                if (resumen) {
+                                    this.personalizaciones3D[plato.id] = resumen;
+                                } else {
+                                    delete this.personalizaciones3D[plato.id];
+                                }
+                                this.sincronizarNotasPersonalizacion3D();
+                            }
+                        }
+                    );
                     return;
                 }
 

@@ -6,16 +6,16 @@
     <meta name="theme-color" content="#c2410c">
     <title>Carta | Adbana</title>
     <link rel="stylesheet" href="/css/adbana.css">
-    <link rel="stylesheet" href="/css/carta-visual.css?v=20261120ux1">
+    <link rel="stylesheet" href="/css/carta-visual.css?v=20261122ing1">
     <script>
         window.ADBANA_CONFIG = {
             arPublicUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/')),
             arPublicBaseUrl: @js(rtrim((string) env('AR_PUBLIC_URL', ''), '/'))
         };
     </script>
-    <script src="/js/vendor/jsQR.js?v=20261120ux1"></script>
-    <script type="module" src="/js/ar-engine.js?v=20261120ux1"></script>
-    <script src="/js/carta.js?config=20261120&v=20261120ux1"></script>
+    <script src="/js/vendor/jsQR.js?v=20261122ing1"></script>
+    <script type="module" src="/js/ar-engine.js?v=20261122ing1"></script>
+    <script src="/js/carta.js?config=20261122&v=20261122ing1"></script>
     <script defer src="/js/alpine.min.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 <link rel="stylesheet" href="/css/carga.css?v=20261031d"></head>
@@ -146,11 +146,12 @@
                                 <span class="precio" x-text="money(p.precio)"></span>
                             </div>
                             <small class="plato-desc" x-show="p.descripcion" x-text="p.descripcion"></small>
+                            <small class="plato-custom-badge" x-show="resumenPersonalizacionPlato(p)" x-cloak x-text="'✨ ' + resumenPersonalizacionPlato(p)"></small>
                             <span class="agotado" x-show="!p.disponible" x-text="t('agotado')">Agotado</span>
                         </div>
 
                         <div class="acciones-plato" :class="{ 'una-columna': !p.modelo_3d }">
-                            <button type="button" class="btn-accion-sec" @click="avisoFallback3D = ''; $el.closest('.plato').querySelector('dialog.carta-detalle').showModal()" x-text="t('ver_detalles')">Ver detalles</button>
+                            <button type="button" class="btn-accion-sec" @click="abrirDetallePlato(p, $el.closest('.plato').querySelector('dialog.carta-detalle'))" x-text="t('ver_detalles')">Ver detalles</button>
                             <button type="button" class="btn-accion-sec btn-ar-accion" x-show="p.modelo_3d" @click="abrirAR(p, document.getElementById('mv-' + p.id))" x-text="t('ver_en_mesa_ar')">
                                 📷 Ver en tu mesa (AR)
                             </button>
@@ -182,19 +183,23 @@
                             </div>
                         </div>
 
-                        <dialog class="carta-detalle" :id="'dlg-detalle-' + p.id" @click.self="$el.close()">
-                            <form method="dialog"><button class="btn-sec btn-cerrar-detalle" aria-label="Cerrar ficha">✕ Cerrar</button></form>
+                        <dialog class="carta-detalle" :id="'dlg-detalle-' + p.id" @click.self="cerrarDetallePlato(p, $el)">
+                            <form method="dialog" @submit.prevent="cerrarDetallePlato(p, $el.closest('dialog.carta-detalle'))"><button class="btn-sec btn-cerrar-detalle" aria-label="Cerrar ficha">✕ Cerrar</button></form>
                             <div class="ar-fallback-banner" x-show="avisoFallback3D" x-cloak role="alert">
                                 <p x-text="avisoFallback3D"></p>
-                                <small>👆 Puedes girar y hacer zoom al plato 3D aquí mismo con el dedo o mouse, o abrir la carta en tu celular.</small>
+                                <small>👆 Puedes quitar o aumentar ingredientes y girar el plato 3D aquí mismo con el dedo o mouse, o abrir la carta en tu celular.</small>
                                 <button type="button" class="btn-sec btn-qr-cel" @click="abrirModalQrEscritorio(p)">
                                     📲 Escanear QR con otro celular
                                 </button>
                             </div>
                             <template x-if="p.modelo_3d">
                                 <div class="detalle-3d-wrap">
-                                    <span class="badge-3d" aria-hidden="true">✨ Vista 3D 360°</span>
+                                    <span class="badge-3d" aria-hidden="true">✨ Configurador 3D 360°</span>
+                                    <div class="visor-config-modal-3d"
+                                         :id="'visor-config-modal-' + p.id"
+                                         x-show="visorModal3DCustomActivo[p.id]"></div>
                                     <model-viewer
+                                        x-show="!visorModal3DCustomActivo[p.id]"
                                         :id="'mv-modal-' + p.id"
                                         :src="p.modelo_3d + '?v=ar8'"
                                         :ios-src="obtenerIosSrc(p)"
@@ -230,9 +235,42 @@
                                              @pointerdown.stop
                                              @touchstart.stop></div>
                                     </model-viewer>
-                                    <button type="button" class="btn carta-ar" @click="abrirAR(p, document.getElementById('mv-modal-' + p.id))">
-                                        📷 Ver en tu mesa (AR)
-                                    </button>
+
+                                    <div class="configurador-3d-panel">
+                                        <div class="configurador-3d-header">
+                                            <span>✨ Personaliza tus ingredientes en 3D</span>
+                                            <small>Toca para quitar o agregar en tiempo real</small>
+                                        </div>
+                                        <div class="configurador-3d-chips">
+                                            <template x-for="ing in obtenerChipsIngredientes(p)" :key="ing.id">
+                                                <button type="button"
+                                                        class="chip-ingrediente-modal"
+                                                        :class="{
+                                                            'is-active': ingredienteEstaActivo(p, ing.id),
+                                                            'is-off': !ingredienteEstaActivo(p, ing.id),
+                                                            'is-extra': ing.esExtra
+                                                        }"
+                                                        @click="alternarIngredientePlato(p, ing.id)">
+                                                    <span x-text="ing.icono + ' ' + ing.nombre + (ing.esExtra ? (ingredienteEstaActivo(p, ing.id) ? ' ✓' : '') : (ingredienteEstaActivo(p, ing.id) ? ' ✓' : ' ✕'))"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                        <p class="configurador-3d-resumen"
+                                           x-show="resumenPersonalizacionPlato(p)"
+                                           x-text="resumenPersonalizacionPlato(p)"></p>
+                                    </div>
+
+                                    <div class="detalle-3d-acciones">
+                                        <button type="button"
+                                                class="btn btn-confirmar-custom"
+                                                x-show="p.disponible"
+                                                @click="confirmarPersonalizacionYAgregar(p, $el.closest('dialog.carta-detalle'))">
+                                            🛒 Confirmar y agregar al pedido
+                                        </button>
+                                        <button type="button" class="btn carta-ar" @click="abrirAR(p, document.getElementById('mv-modal-' + p.id))">
+                                            📷 Ver en tu mesa (AR)
+                                        </button>
+                                    </div>
                                 </div>
                             </template>
                             <template x-if="!p.modelo_3d && p.imagen"><img :src="p.imagen" :alt="p.nombre" loading="lazy"></template>
